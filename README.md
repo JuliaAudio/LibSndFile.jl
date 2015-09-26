@@ -1,37 +1,27 @@
-AudioIO.jl
-==========
+LibSndFile.jl
+=============
 
-[![Build Status](https://travis-ci.org/ssfrr/AudioIO.jl.svg?branch=master)](https://travis-ci.org/ssfrr/AudioIO.jl)
-[![Pkgs Status](http://pkg.julialang.org/badges/AudioIO_release.svg)](http://pkg.julialang.org/?pkg=AudioIO&ver=release)
-[![Coverage Status](https://img.shields.io/coveralls/ssfrr/AudioIO.jl.svg)](https://coveralls.io/r/ssfrr/AudioIO.jl?branch=master)
+[![Build Status](https://travis-ci.org/ssfrr/LibSndFile.jl.svg?branch=master)] (https://travis-ci.org/ssfrr/LibSndFile.jl)
+[![Pkgs Status](http://pkg.julialang.org/badges/LibSndFile_release.svg)] (http://pkg.julialang.org/?pkg=LibSndFile&ver=release)
+[![Coverage Status](https://img.shields.io/coveralls/ssfrr/LibSndFile.jl.svg)] (https://coveralls.io/r/ssfrr/LibSndFile.jl?branch=master)
 
-AudioIO interfaces to audio streams, including real-time recording, audio
-processing, and playback through your sound card using PortAudio. It also
-supports reading and writing audio files in a variety of formats. It is under
-active development and the low-level API could change, but the basic
-functionality (reading and writing files, the `play` function, etc.) should be
-stable and usable by the general Julia community.
-
-File I/O
---------
-
-File I/O is handled by [libsndfile](http://www.mega-nerd.com/libsndfile/), so
-we can support a wide variety of file and sample formats. Use the
-`AudioIO.open` function to open a file. It has the same API as the built-in
-Base.open, but returns an `AudioFile` type. Opening an audio file and reading
-its contents into an array is as simple as:
+LibSndFile is a wrapper for [libsndfile](http://www.mega-nerd.com/libsndfile/), so and supports a wide variety of file and sample formats. The package uses the [FileIO](https://github.com/JuliaIO/FileIO.jl) `load` and `save` interface to automatically figure out the file type of the file to be opened, and the results are represented either as a `TimeSampleBuf`, a `SampleSource` (for stream-based reading), or a `SampleSink` (for stream-based writing). These types are defined in the [SampleTypes](https://github.com/ssfrr/SampleTypes.jl) package.
 
 ```julia
-f = AudioIO.open("data/never_gonna_give_you_up.wav")
-data = read(f)
-close(f)
+f = load("data/never_gonna_give_you_up.ogg")
+```
+
+```julia
+s = load("data/never_gonna_let_you_down.ogg", streaming=true)
+f = readall(s)
+close(s)
 ```
 
 Or to hand closing the file automatically (including in the case of unexpected
 exceptions), we support the `do` block syntax:
 
 ```julia
-data = AudioIO.open("data/never_gonna_let_you_down.wav") do f
+data = LibSndFile.open("data/never_gonna_let_you_down.wav") do f
     read(f)
 end
 ```
@@ -40,7 +30,7 @@ By default the returned array will be in whatever format the original audio file
 (Float32, UInt16, etc.). We also support automatic conversion by supplying a type:
 
 ```julia
-data = AudioIO.open("data/never_gonna_run_around.wav") do f
+data = LibSndFile.open("data/never_gonna_run_around.wav") do f
     read(f, Float32)
 end
 ```
@@ -120,13 +110,12 @@ Installation
 To install the latest release version, simply run
 
 ```julia
-julia> Pkg.add("AudioIO")
+julia> Pkg.add("LibSndFile")
 ```
 
 If you want to install the lastest master, it's almost as easy:
 
 ```julia
-julia> Pkg.clone("AudioIO")
-julia> Pkg.build("AudioIO")
+julia> Pkg.clone("LibSndFile")
+julia> Pkg.build("LibSndFile")
 ```
-
