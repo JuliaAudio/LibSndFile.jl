@@ -6,12 +6,17 @@ else
     using BaseTestNext
 end
 
+println("loading LibSndFile")
 using LibSndFile
+println("loading SampleTypes")
 using SampleTypes
+println("loading FileIO")
+using FileIO
+println("Modules loaded")
 
 include("testhelpers.jl")
 
-"""Generates a 2-second stereo TimeSampleBuf"""
+"""Generates a 100-sample stereo TimeSampleBuf"""
 function gen_reference(srate)
     t = collect(0:99) / srate
     phase = [2pi*440t 2pi*880t]
@@ -19,40 +24,38 @@ function gen_reference(srate)
     TimeSampleBuf(round(Int16, (2 ^ 15 - 1) * 0.5sin(phase)), srate)
 end
 
+println("Beginning tests")
+
 try
     @testset "LibSndFile Tests" begin
         srate = 44100
         # reference file generated with Audacity. Careful to turn dithering off
         # on export for deterministic output!
-        reference_file = Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp.wav")
+        reference_file = File{format"WAV"}(Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp.wav"))
         reference_buf = gen_reference(srate)
 
         @testset "WAV file reading" begin
-            buf = LibSndFile.load(reference_file)
+            println("loading file")
+            buf = load(reference_file)
+            println("file loaded")
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
             @test domain(buf) == collect(0:99)/srate * s
             @test mse(buf[1:20, :], reference_buf[1:20, :]) < 1
         end
-        #
+
         # @testset "WAV file writing" begin
-        #     writename = string(tempname(), ".wav")
-        #
-        #
-        #     AudioIO.open(fname, "w") do f
-        #         write(f, reference)
-        #     end
-        #
-        #     # test basic reading
-        #     AudioIO.open(fname) do f
-        #         @fact f.sfinfo.channels => 1
-        #         @fact f.sfinfo.frames => 2 * srate
-        #         actual = read(f)
-        #         @fact length(reference) => length(actual)
-        #         @fact reference => actual[:, 1]
-        #         @fact samplerate(f) => srate
-        #     end
+        #     fname = string(tempname(), ".wav")
+        #     LibSndFile.save(fname, reference_buf)
+        #     buf = LibSndFile.load(fname)
+        #     @test samplerate(buf) == srate
+        #     @test nchannels(buf) == 2
+        #     @test nframes(buf) == 100
+        #     @test domain(buf) == collect(0:99)/srate * s
+        #     @test mse(buf[1:20, :], reference_buf[1:20, :]) < 1
+        # end
+
         #
         #     # test seeking
         #

@@ -1,6 +1,7 @@
 module LibSndFile
 
 using SampleTypes
+using FileIO
 
 include("formats.jl")
 include(Pkg.dir("LibSndFile", "deps", "deps.jl"))
@@ -16,6 +17,10 @@ const SFM_WRITE = Int32(0x20)
 #     ".wav" => SF_FORMAT_WAV,
 #     ".flac" => SF_FORMAT_FLAC
 # ]
+
+# register FileIO formats
+# TODO: coordinate this registration with .avi files, which also start with "RIFF"
+# add_format(format"WAV", "RIFF", [".wav"])
 
 """Take a LibSndFile formata code and return a suitable sample type"""
 function fmt_to_type(fmt)
@@ -62,7 +67,8 @@ type SndFileSource{N, SR, T} <: SampleSource{N, SR, T}
     sfinfo::SF_INFO
 end
 
-function load(path::AbstractString)
+# function FileIO.load(path::File{format"WAV"})
+function load(path)
     sfinfo = SF_INFO(0, 0, 0, 0, 0, 0)
     file_mode = SFM_READ
 
@@ -87,13 +93,23 @@ function load(path::AbstractString)
         error(bytestring(errmsg))
     end
 
-    T = fmt_to_type(sfinfo.format)
-    nframes = sfinfo.frames
-    nchannels = sfinfo.channels
+    arr, nread = try
+        T = fmt_to_type(sfinfo.format)
+        nframes = sfinfo.frames
+        nchannels = sfinfo.channels
 
-    # the data comes in interleaved, so we need to transpose
-    arr = Array(T, nchannels, nframes)
-    nread = sf_readf(filePtr, arr, nframes)
+        # the data comes in interleaved, so we need to transpose
+        arr = Array(T, nchannels, nframes)
+        nread = sf_readf(filePtr, arr, nframes)
+
+        (arr, nread)
+    finally
+        # make sure we close the file even if something goes wrong
+        err = ccall((:sf_close, libsndfile), Int32, (Ptr{Void},), filePtr)
+        if err != 0
+            error("Failed to close file $path")
+        end
+    end
 
     TimeSampleBuf(arr[:, 1:nread]', sfinfo.samplerate)
 end
@@ -126,17 +142,17 @@ sf_readf(filePtr, dest::Array{Int16}, nframes) =
         filePtr, dest, nframes)
 
 sf_readf(filePtr, dest::Array{Int32}, nframes) =
-    ccall((:sf_readf_short, libsndfile), Int64,
+    ccall((:sf_readf_int, libsndfile), Int64,
         (Ptr{Void}, Ptr{Int32}, Int64),
         filePtr, dest, nframes)
 
 sf_readf(filePtr, dest::Array{Float32}, nframes) =
-    ccall((:sf_readf_short, libsndfile), Int64,
+    ccall((:sf_readf_float, libsndfile), Int64,
         (Ptr{Void}, Ptr{Float32}, Int64),
         filePtr, dest, nframes)
 
 sf_readf(filePtr, dest::Array{Float64}, nframes) =
-    ccall((:sf_readf_short, libsndfile), Int64,
+    ccall((:sf_readf_double, libsndfile), Int64,
         (Ptr{Void}, Ptr{Float64}, Int64),
         filePtr, dest, nframes)
 
