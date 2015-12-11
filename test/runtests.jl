@@ -12,12 +12,12 @@ using FileIO
 
 include("testhelpers.jl")
 
-"""Generates a 100-sample stereo TimeSampleBuf"""
+"""Generates a 100-sample 2-channel signal"""
 function gen_reference(srate)
     t = collect(0:99) / srate
     phase = [2pi*440t 2pi*880t]
 
-    TimeSampleBuf(round(Int16, (2 ^ 15 - 1) * 0.5sin(phase)), srate)
+    0.5sin(phase)
 end
 
 try
@@ -37,7 +37,7 @@ try
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
             @test domain(buf) == collect(0:99)/srate * s
-            @test mse(buf, reference_buf) < 1
+            @test mse(buf, reference_buf) < 1e-10
         end
 
         @testset "FLAC file reading" begin
@@ -47,18 +47,18 @@ try
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
             @test domain(buf) == collect(0:99)/srate * s
-            @test mse(buf, reference_buf) < 1
+            @test mse(buf, reference_buf) < 1e-10 
         end
 
-        # @testset "OGG file reading" begin
-        #     info("loading OGG")
-        #     buf = load(reference_ogg)
-        #     @test samplerate(buf) == srate
-        #     @test nchannels(buf) == 2
-        #     @test nframes(buf) == 100
-        #     @test domain(buf) == collect(0:99)/srate * s
-        #     @test mse(buf, reference_buf) < 1
-        # end
+        @testset "OGG file reading" begin
+            info("loading OGG")
+            buf = load(reference_ogg)
+            @test samplerate(buf) == srate
+            @test nchannels(buf) == 2
+            @test nframes(buf) == 100
+            @test domain(buf) == collect(0:99)/srate * s
+            @test mse(buf, reference_buf) < 1e-5
+        end
 
         # @testset "WAV file writing" begin
         #     fname = string(tempname(), ".wav")

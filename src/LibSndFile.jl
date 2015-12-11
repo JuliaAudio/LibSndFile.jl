@@ -4,6 +4,7 @@ module LibSndFile
 
 using SampleTypes
 using FileIO
+using FixedPointNumbers
 
 function __init__()
     # this needs to be run when the module is loaded at run-time, even if
@@ -44,11 +45,11 @@ end
 """Take a LibSndFile formata code and return a suitable sample type"""
 function fmt_to_type(fmt)
     mapping = Dict{UInt32, Type}(
-        SF_FORMAT_PCM_S8 => Int16,
-        SF_FORMAT_PCM_U8 => Int16,
-        SF_FORMAT_PCM_16 => Int16,
-        SF_FORMAT_PCM_24 => Int32,
-        SF_FORMAT_PCM_32 => Int32,
+        SF_FORMAT_PCM_S8 => Fixed{Int16, 15},
+        SF_FORMAT_PCM_U8 => Fixed{Int16, 15},
+        SF_FORMAT_PCM_16 => Fixed{Int16, 15},
+        SF_FORMAT_PCM_24 => Fixed{Int32, 31},
+        SF_FORMAT_PCM_32 => Fixed{Int32, 31},
         SF_FORMAT_FLOAT => Float32,
         SF_FORMAT_DOUBLE => Float64,
         SF_FORMAT_VORBIS => Float32,
@@ -155,14 +156,14 @@ of frames into the given array. Returns the number of frames read.
 """
 function sf_readf end
 
-sf_readf(filePtr, dest::Array{Int16}, nframes) =
+sf_readf{T <: Union{Int16, Fixed{Int16, 15}}}(filePtr, dest::Array{T}, nframes) =
     ccall((:sf_readf_short, libsndfile), Int64,
-        (Ptr{Void}, Ptr{Int16}, Int64),
+        (Ptr{Void}, Ptr{T}, Int64),
         filePtr, dest, nframes)
 
-sf_readf(filePtr, dest::Array{Int32}, nframes) =
+sf_readf{T <: Union{Int32, Fixed{Int32, 31}}}(filePtr, dest::Array{T}, nframes) =
     ccall((:sf_readf_int, libsndfile), Int64,
-        (Ptr{Void}, Ptr{Int32}, Int64),
+        (Ptr{Void}, Ptr{T}, Int64),
         filePtr, dest, nframes)
 
 sf_readf(filePtr, dest::Array{Float32}, nframes) =
