@@ -9,6 +9,8 @@ function __init__()
     # this needs to be run when the module is loaded at run-time, even if
     # the module is precompiled.
     add_format(format"WAV", detectwav, ".wav", [:LibSndFile])
+    add_format(format"FLAC", "fLaC", ".flac", [:LibSndFile])
+    add_format(format"OGG", "OggS", [".ogg", ".oga"], [:LibSndFile])
 end
 
 
@@ -84,7 +86,7 @@ type SndFileSource{N, SR, T} <: SampleSource{N, SR, T}
     sfinfo::SF_INFO
 end
 
-function FileIO.load(path::File{format"WAV"})
+function load(path::File)
 # function load(path)
     sfinfo = SF_INFO(0, 0, 0, 0, 0, 0)
     file_mode = SFM_READ

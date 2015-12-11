@@ -25,18 +25,40 @@ try
         srate = 44100
         # reference file generated with Audacity. Careful to turn dithering off
         # on export for deterministic output!
-        # reference_file = File{format"WAV"}(Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp.wav"))
-        reference_file = Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp.wav")
+        reference_wav = Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp.wav")
+        reference_ogg = Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp.ogg")
+        reference_flac = Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp.flac")
         reference_buf = gen_reference(srate)
 
         @testset "WAV file reading" begin
-            buf = load(reference_file)
+            info("loading WAV")
+            buf = load(reference_wav)
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
             @test domain(buf) == collect(0:99)/srate * s
-            @test mse(buf[1:20, :], reference_buf[1:20, :]) < 1
+            @test mse(buf, reference_buf) < 1
         end
+
+        @testset "FLAC file reading" begin
+            info("loading FLAC")
+            buf = load(reference_flac)
+            @test samplerate(buf) == srate
+            @test nchannels(buf) == 2
+            @test nframes(buf) == 100
+            @test domain(buf) == collect(0:99)/srate * s
+            @test mse(buf, reference_buf) < 1
+        end
+
+        # @testset "OGG file reading" begin
+        #     info("loading OGG")
+        #     buf = load(reference_ogg)
+        #     @test samplerate(buf) == srate
+        #     @test nchannels(buf) == 2
+        #     @test nframes(buf) == 100
+        #     @test domain(buf) == collect(0:99)/srate * s
+        #     @test mse(buf, reference_buf) < 1
+        # end
 
         # @testset "WAV file writing" begin
         #     fname = string(tempname(), ".wav")
