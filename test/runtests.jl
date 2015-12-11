@@ -6,13 +6,9 @@ else
     using BaseTestNext
 end
 
-println("loading LibSndFile")
 using LibSndFile
-println("loading SampleTypes")
 using SampleTypes
-println("loading FileIO")
 using FileIO
-println("Modules loaded")
 
 include("testhelpers.jl")
 
@@ -24,20 +20,17 @@ function gen_reference(srate)
     TimeSampleBuf(round(Int16, (2 ^ 15 - 1) * 0.5sin(phase)), srate)
 end
 
-println("Beginning tests")
-
 try
     @testset "LibSndFile Tests" begin
         srate = 44100
         # reference file generated with Audacity. Careful to turn dithering off
         # on export for deterministic output!
-        reference_file = File{format"WAV"}(Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp.wav"))
+        # reference_file = File{format"WAV"}(Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp.wav"))
+        reference_file = Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp.wav")
         reference_buf = gen_reference(srate)
 
         @testset "WAV file reading" begin
-            println("loading file")
             buf = load(reference_file)
-            println("file loaded")
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100

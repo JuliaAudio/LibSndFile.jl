@@ -1,7 +1,16 @@
+__precompile__()
+
 module LibSndFile
 
 using SampleTypes
 using FileIO
+
+function __init__()
+    # this needs to be run when the module is loaded at run-time, even if
+    # the module is precompiled.
+    add_format(format"WAV", detectwav, ".wav", [:LibSndFile])
+end
+
 
 include("formats.jl")
 include(Pkg.dir("LibSndFile", "deps", "deps.jl"))
@@ -19,8 +28,16 @@ const SFM_WRITE = Int32(0x20)
 # ]
 
 # register FileIO formats
-# TODO: coordinate this registration with .avi files, which also start with "RIFF"
-# add_format(format"WAV", "RIFF", [".wav"])
+# WAV is a subtype of RIFF, as is AVI
+function detectwav(io)
+    seekstart(io)
+    magic = ascii(read(io, UInt8, 4))
+    magic == "RIFF" || return false
+    seek(io, 8)
+    submagic = ascii(read(io, UInt8, 4))
+
+    submagic == "WAVE"
+end
 
 """Take a LibSndFile formata code and return a suitable sample type"""
 function fmt_to_type(fmt)
@@ -67,8 +84,8 @@ type SndFileSource{N, SR, T} <: SampleSource{N, SR, T}
     sfinfo::SF_INFO
 end
 
-# function FileIO.load(path::File{format"WAV"})
-function load(path)
+function FileIO.load(path::File{format"WAV"})
+# function load(path)
     sfinfo = SF_INFO(0, 0, 0, 0, 0, 0)
     file_mode = SFM_READ
 
@@ -86,7 +103,7 @@ function load(path)
     #
     filePtr = ccall((:sf_open, libsndfile), Ptr{Void},
                     (Ptr{UInt8}, Int32, Ptr{SF_INFO}),
-                    path, file_mode, &sfinfo)
+                    filename(path), file_mode, &sfinfo)
 
     if filePtr == C_NULL
         errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Void},), filePtr)
