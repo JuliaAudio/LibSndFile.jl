@@ -92,19 +92,48 @@ try
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
             @test domain(buf) == collect(0:99)/srate * s
+            # lossy compression, so relax the accuracy a bit
             @test mse(buf, reference_buf) < 1e-5
         end
 
-        # @testset "WAV file writing" begin
-        #     fname = string(tempname(), ".wav")
-        #     LibSndFile.save(fname, reference_buf)
-        #     buf = LibSndFile.load(fname)
-        #     @test samplerate(buf) == srate
-        #     @test nchannels(buf) == 2
-        #     @test nframes(buf) == 100
-        #     @test domain(buf) == collect(0:99)/srate * s
-        #     @test mse(buf[1:20, :], reference_buf[1:20, :]) < 1
-        # end
+        @testset "WAV file writing" begin
+            fname = string(tempname(), ".wav")
+            testbuf = TimeSampleBuf(rand(100, 2), srate)
+            save(fname, testbuf)
+            buf = load(fname)
+            @test samplerate(buf) == srate
+            @test nchannels(buf) == 2
+            @test nframes(buf) == 100
+            @test domain(buf) == collect(0:99)/srate * s
+            @test mse(buf, testbuf) < 1e-10
+        end
+
+        @testset "OGG file writing" begin
+            fname = string(tempname(), ".ogg")
+            testbuf = TimeSampleBuf(rand(100, 2), srate)
+            save(fname, testbuf)
+            buf = load(fname)
+            @test samplerate(buf) == srate
+            @test nchannels(buf) == 2
+            @test nframes(buf) == 100
+            @test domain(buf) == collect(0:99)/srate * s
+            # noise doesn't compress very well...
+            @test mse(buf, testbuf) < 0.05
+        end
+
+        @testset "FLAC file writing" begin
+            fname = string(tempname(), ".flac")
+            # TODO: this conversion fails sometimes because of FixedPointNumbers.jl#37
+            arr = convert(Array{Fixed{Int16, 15}}, rand(100, 2))
+            testbuf = TimeSampleBuf(arr, srate)
+            save(fname, testbuf)
+            buf = load(fname)
+            @test samplerate(buf) == srate
+            @test nchannels(buf) == 2
+            @test nframes(buf) == 100
+            @test domain(buf) == collect(0:99)/srate * s
+            @test mse(buf, testbuf) < 1e-10
+        end
 
         #
         #     # test seeking

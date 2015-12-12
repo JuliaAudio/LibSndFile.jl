@@ -6,6 +6,9 @@ using SampleTypes
 using FileIO
 using FixedPointNumbers
 
+typealias PCM16Sample Fixed{Int16, 15}
+typealias PCM32Sample Fixed{Int32, 31}
+
 function __init__()
     # this needs to be run when the module is loaded at run-time, even if
     # the module is precompiled.
@@ -25,12 +28,16 @@ include(Pkg.dir("LibSndFile", "deps", "deps.jl"))
 const SFM_READ = Int32(0x10)
 const SFM_WRITE = Int32(0x20)
 
-# const EXT_TO_FORMAT = [
-#     ".wav" => SF_FORMAT_WAV,
-#     ".flac" => SF_FORMAT_FLAC
-# ]
+formatcode(::Type{format"WAV"}) = SF_FORMAT_WAV
+formatcode(::Type{format"FLAC"}) = SF_FORMAT_FLAC
+formatcode(::Type{format"OGG"}) = SF_FORMAT_OGG
 
-# register FileIO formats
+subformatcode(::Type{PCM16Sample}) = SF_FORMAT_PCM_16
+subformatcode(::Type{PCM32Sample}) = SF_FORMAT_PCM_32
+subformatcode(::Type{Float32}) = SF_FORMAT_FLOAT
+subformatcode(::Type{Float64}) = SF_FORMAT_DOUBLE
+
+
 # WAV is a subtype of RIFF, as is AVI
 function detectwav(io)
     seekstart(io)
@@ -42,14 +49,14 @@ function detectwav(io)
     submagic == "WAVE"
 end
 
-"""Take a LibSndFile formata code and return a suitable sample type"""
+"""Take a LibSndFile format code and return a suitable sample type"""
 function fmt_to_type(fmt)
     mapping = Dict{UInt32, Type}(
-        SF_FORMAT_PCM_S8 => Fixed{Int16, 15},
-        SF_FORMAT_PCM_U8 => Fixed{Int16, 15},
-        SF_FORMAT_PCM_16 => Fixed{Int16, 15},
-        SF_FORMAT_PCM_24 => Fixed{Int32, 31},
-        SF_FORMAT_PCM_32 => Fixed{Int32, 31},
+        SF_FORMAT_PCM_S8 => PCM16Sample,
+        SF_FORMAT_PCM_U8 => PCM16Sample,
+        SF_FORMAT_PCM_16 => PCM16Sample,
+        SF_FORMAT_PCM_24 => PCM32Sample,
+        SF_FORMAT_PCM_32 => PCM32Sample,
         SF_FORMAT_FLOAT => Float32,
         SF_FORMAT_DOUBLE => Float64,
         SF_FORMAT_VORBIS => Float32,
@@ -69,12 +76,6 @@ type SF_INFO
     format::Int32
     sections::Int32
     seekable::Int32
-
-    # function SF_INFO(frames::Integer, samplerate::Integer, channels::Integer,
-    #                  format::Integer, sections::Integer, seekable::Integer)
-    #     new(int64(frames), int32(samplerate), int32(channels), int32(format),
-    #         int32(sections), int32(seekable))
-    # end
 end
 
 type SndFileSink{N, SR, T} <: SampleSink{N, SR, T}
@@ -88,29 +89,15 @@ type SndFileSource{N, SR, T} <: SampleSource{N, SR, T}
 end
 
 function load(path::File)
-# function load(path)
     sfinfo = SF_INFO(0, 0, 0, 0, 0, 0)
-    file_mode = SFM_READ
 
-    # if mode == "w"
-    #     file_mode = SFM_WRITE
-    #     sfinfo.samplerate = sampleRate
-    #     sfinfo.channels = channels
-    #     if format == 0
-    #         _, ext = splitext(path)
-    #         sfinfo.format = EXT_TO_FORMAT[ext] | SF_FORMAT_PCM_16
-    #     else
-    #         sfinfo.format = format
-    #     end
-    # end
-    #
     filePtr = ccall((:sf_open, libsndfile), Ptr{Void},
                     (Ptr{UInt8}, Int32, Ptr{SF_INFO}),
-                    filename(path), file_mode, &sfinfo)
+                    filename(path), SFM_READ, &sfinfo)
 
     if filePtr == C_NULL
         errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Void},), filePtr)
-        error(bytestring(errmsg))
+        error("LibSndFile.jl error while loading $path: ", bytestring(errmsg))
     end
 
     arr, nread = try
@@ -127,28 +114,52 @@ function load(path::File)
         # make sure we close the file even if something goes wrong
         err = ccall((:sf_close, libsndfile), Int32, (Ptr{Void},), filePtr)
         if err != 0
-            error("Failed to close file $path")
+            error("LibSndFile.jl error while loading $path: Failed to close file")
         end
     end
 
     TimeSampleBuf(arr[:, 1:nread]', sfinfo.samplerate)
 end
 
-# function Base.close(file::AudioFile)
-#     err = ccall((:sf_close, libsndfile), Int32, (Ptr{Void},), file.filePtr)
-#     if err != 0
-#         error("Failed to close file")
-#     end
-# end
-#
-# function load(f::Function, args...)
-#     file = AudioIO.open(args...)
-#     try
-#         f(file)
-#     finally
-#         close(file)
-#     end
-# end
+function save{T}(path::File{T}, buf::TimeSampleBuf)
+    sfinfo = SF_INFO(0, 0, 0, 0, 0, 0)
+
+    sfinfo.samplerate = samplerate(buf)
+    sfinfo.channels = nchannels(buf)
+    sfinfo.format = formatcode(T)
+    # TODO: should we auto-convert 32-bit integer samples to 24-bit?
+    if T == format"FLAC" && eltype(buf) != PCM16Sample
+        error("LibSndFile.jl: FLAC only supports 16-bit integer samples")
+    end
+    if T == format"OGG"
+        sfinfo.format |= SF_FORMAT_VORBIS
+    else
+        sfinfo.format |= subformatcode(eltype(buf))
+    end
+
+    filePtr = ccall((:sf_open, libsndfile), Ptr{Void},
+                    (Ptr{UInt8}, Int32, Ptr{SF_INFO}),
+                    filename(path), SFM_WRITE, &sfinfo)
+
+    if filePtr == C_NULL
+        errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Void},), filePtr)
+        error("LibSndFile.jl error while saving $path: "bytestring(errmsg))
+    end
+
+    nwritten = try
+        # the data needs to be interleaved, so we transpose
+        arr = buf.data'
+        sf_writef(filePtr, arr, nframes(buf))
+    finally
+        # make sure we close the file even if something goes wrong
+        err = ccall((:sf_close, libsndfile), Int32, (Ptr{Void},), filePtr)
+        if err != 0
+            error("LibSndFile.jl error while saving $path: Failed to close file")
+        end
+    end
+
+    nothing
+end
 
 """
 Wrappers for the family of sf_readf_* functions, which read the given number
@@ -156,12 +167,12 @@ of frames into the given array. Returns the number of frames read.
 """
 function sf_readf end
 
-sf_readf{T <: Union{Int16, Fixed{Int16, 15}}}(filePtr, dest::Array{T}, nframes) =
+sf_readf{T <: Union{Int16, PCM16Sample}}(filePtr, dest::Array{T}, nframes) =
     ccall((:sf_readf_short, libsndfile), Int64,
         (Ptr{Void}, Ptr{T}, Int64),
         filePtr, dest, nframes)
 
-sf_readf{T <: Union{Int32, Fixed{Int32, 31}}}(filePtr, dest::Array{T}, nframes) =
+sf_readf{T <: Union{Int32, PCM32Sample}}(filePtr, dest::Array{T}, nframes) =
     ccall((:sf_readf_int, libsndfile), Int64,
         (Ptr{Void}, Ptr{T}, Int64),
         filePtr, dest, nframes)
@@ -176,28 +187,32 @@ sf_readf(filePtr, dest::Array{Float64}, nframes) =
         (Ptr{Void}, Ptr{Float64}, Int64),
         filePtr, dest, nframes)
 
-# function Base.write{T}(file::AudioFile, frames::Array{T})
-#     @assert file.sfinfo.channels <= 2
-#     nframes = int(length(frames) / file.sfinfo.channels)
-#
-#     if T == Int16
-#         return ccall((:sf_writef_short, libsndfile), Int64,
-#                         (Ptr{Void}, Ptr{Int16}, Int64),
-#                         file.filePtr, frames, nframes)
-#     elseif T == Int32
-#         return ccall((:sf_writef_int, libsndfile), Int64,
-#                         (Ptr{Void}, Ptr{Int32}, Int64),
-#                         file.filePtr, frames, nframes)
-#     elseif T == Float32
-#         return ccall((:sf_writef_float, libsndfile), Int64,
-#                         (Ptr{Void}, Ptr{Float32}, Int64),
-#                         file.filePtr, frames, nframes)
-#     elseif T == Float64
-#         return ccall((:sf_writef_double, libsndfile), Int64,
-#                         (Ptr{Void}, Ptr{Float64}, Int64),
-#                         file.filePtr, frames, nframes)
-#     end
-# end
+"""
+Wrappers for the family of sf_writef_* functions, which write the given number
+of frames into the given array. Returns the number of frames written.
+"""
+function sf_writef end
+
+sf_writef{T <: Union{Int16, PCM16Sample}}(filePtr, src::Array{T}, nframes) =
+    ccall((:sf_writef_short, libsndfile), Int64,
+                (Ptr{Void}, Ptr{T}, Int64),
+                filePtr, src, nframes)
+
+sf_writef{T <: Union{Int32, PCM32Sample}}(filePtr, src::Array{T}, nframes) =
+    ccall((:sf_writef_int, libsndfile), Int64,
+                (Ptr{Void}, Ptr{T}, Int64),
+                filePtr, src, nframes)
+
+sf_writef(filePtr, src::Array{Float32}, nframes) =
+    ccall((:sf_writef_float, libsndfile), Int64,
+                (Ptr{Void}, Ptr{Float32}, Int64),
+                filePtr, src, nframes)
+
+sf_writef(filePtr, src::Array{Float64}, nframes) =
+    ccall((:sf_writef_double, libsndfile), Int64,
+                (Ptr{Void}, Ptr{Float64}, Int64),
+                filePtr, src, nframes)
+
 #
 # function Base.seek(file::AudioFile, offset::Integer, whence::Integer)
 #     new_offset = ccall((:sf_seek, libsndfile), Int64,
