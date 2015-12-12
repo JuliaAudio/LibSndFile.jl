@@ -31,7 +31,6 @@ try
         reference_buf = gen_reference(srate)
 
         @testset "WAV file reading" begin
-            info("loading WAV")
             buf = load(reference_wav)
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
@@ -41,17 +40,15 @@ try
         end
 
         @testset "FLAC file reading" begin
-            info("loading FLAC")
             buf = load(reference_flac)
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
             @test domain(buf) == collect(0:99)/srate * s
-            @test mse(buf, reference_buf) < 1e-10 
+            @test mse(buf, reference_buf) < 1e-10
         end
 
         @testset "OGG file reading" begin
-            info("loading OGG")
             buf = load(reference_ogg)
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
