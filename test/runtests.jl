@@ -30,7 +30,22 @@ try
         reference_flac = Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp.flac")
         reference_buf = gen_reference(srate)
 
+        @testset "Read errors" begin
+            STDERR_orig = STDERR
+            (rd, rw) = redirect_stderr()
+            @test_throws ErrorException load("doesnotexist.wav")
+            close(rw) # makes sure all writes are flushed
+            # check output here?
+            close(rd)
+            redirect_stderr(STDERR_orig)
+        end
         @testset "WAV file reading" begin
+            open(reference_wav) do stream
+                @test LibSndFile.detectwav(stream)
+            end
+            open(reference_flac) do stream
+                @test !LibSndFile.detectwav(stream)
+            end
             buf = load(reference_wav)
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
