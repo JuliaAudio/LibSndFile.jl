@@ -3,3 +3,4 @@
 *.o
 deps/deps.jl
 *.cov
+coverage

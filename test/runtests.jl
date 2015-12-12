@@ -9,6 +9,7 @@ end
 using LibSndFile
 using SampleTypes
 using FileIO
+using FixedPointNumbers
 
 include("testhelpers.jl")
 
@@ -26,6 +27,9 @@ try
         # reference file generated with Audacity. Careful to turn dithering off
         # on export for deterministic output!
         reference_wav = Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp.wav")
+        reference_wav_float = Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp_float.wav")
+        reference_wav_double = Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp_double.wav")
+        reference_wav_pcm24 = Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp_pcm24.wav")
         reference_ogg = Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp.ogg")
         reference_flac = Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp.flac")
         reference_buf = gen_reference(srate)
@@ -39,19 +43,38 @@ try
             close(rd)
             redirect_stderr(STDERR_orig)
         end
-        @testset "WAV file reading" begin
+        @testset "WAV file detection" begin
             open(reference_wav) do stream
                 @test LibSndFile.detectwav(stream)
             end
             open(reference_flac) do stream
                 @test !LibSndFile.detectwav(stream)
             end
+        end
+        @testset "WAV file reading" begin
             buf = load(reference_wav)
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
             @test domain(buf) == collect(0:99)/srate * s
             @test mse(buf, reference_buf) < 1e-10
+        end
+
+        @testset "Reading different sample types" begin
+            buf = load(reference_wav)
+            @test eltype(buf) == Fixed{Int16, 15}
+
+            buf_float = load(reference_wav_float)
+            @test eltype(buf_float) == Float32
+            @test mse(buf_float, reference_buf) < 1e-10
+
+            buf_double = load(reference_wav_double)
+            @test eltype(buf_double) == Float64
+            @test mse(buf_double, reference_buf) < 1e-10
+
+            buf_pcm24 = load(reference_wav_pcm24)
+            @test eltype(buf_pcm24) == Fixed{Int32, 31}
+            @test mse(buf_pcm24, reference_buf) < 1e-10
         end
 
         @testset "FLAC file reading" begin
