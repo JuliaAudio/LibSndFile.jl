@@ -21,6 +21,18 @@ function gen_reference(srate)
     0.5sin(phase)
 end
 
+function Base.redirect_stderr(f::Function)
+    STDERR_orig = STDERR
+    (rd, rw) = redirect_stderr()
+    try
+        f(rd, rw)
+    finally
+        close(rw) # makes sure all writes are flushed
+        close(rd)
+        redirect_stderr(STDERR_orig)
+    end
+end
+
 try
     @testset "LibSndFile Tests" begin
         srate = 44100
@@ -35,14 +47,11 @@ try
         reference_buf = gen_reference(srate)
 
         @testset "Read errors" begin
-            STDERR_orig = STDERR
-            (rd, rw) = redirect_stderr()
-            @test_throws ErrorException load("doesnotexist.wav")
-            close(rw) # makes sure all writes are flushed
-            # check output here?
-            close(rd)
-            redirect_stderr(STDERR_orig)
+            redirect_stderr() do rd, wr
+                @test_throws ErrorException load("doesnotexist.wav")
+            end
         end
+
         @testset "WAV file detection" begin
             open(reference_wav) do stream
                 @test LibSndFile.detectwav(stream)
@@ -98,7 +107,7 @@ try
 
         @testset "WAV file writing" begin
             fname = string(tempname(), ".wav")
-            testbuf = TimeSampleBuf(rand(100, 2), srate)
+            testbuf = TimeSampleBuf(rand(100, 2)-0.5, srate)
             save(fname, testbuf)
             buf = load(fname)
             @test samplerate(buf) == srate
@@ -110,7 +119,7 @@ try
 
         @testset "OGG file writing" begin
             fname = string(tempname(), ".ogg")
-            testbuf = TimeSampleBuf(rand(100, 2), srate)
+            testbuf = TimeSampleBuf(rand(100, 2)-0.5, srate)
             save(fname, testbuf)
             buf = load(fname)
             @test samplerate(buf) == srate
@@ -124,7 +133,7 @@ try
         @testset "FLAC file writing" begin
             fname = string(tempname(), ".flac")
             # TODO: this conversion fails sometimes because of FixedPointNumbers.jl#37
-            arr = convert(Array{Fixed{Int16, 15}}, rand(100, 2))
+            arr = convert(Array{Fixed{Int16, 15}}, rand(100, 2)-0.5)
             testbuf = TimeSampleBuf(arr, srate)
             save(fname, testbuf)
             buf = load(fname)
@@ -133,6 +142,25 @@ try
             @test nframes(buf) == 100
             @test domain(buf) == collect(0:99)/srate * s
             @test mse(buf, testbuf) < 1e-10
+        end
+
+        @testset "Writing $T data" for T in [Fixed{Int16, 15}, Fixed{Int32, 31}, Float32, Float64]
+            fname = string(tempname(), ".wav")
+            arr = convert(Array{T}, rand(100, 2)-0.5)
+            testbuf = TimeSampleBuf(arr, srate)
+            save(fname, testbuf)
+            buf = load(fname)
+            @test eltype(buf) == T
+            @test mse(buf, testbuf) < 1e-10
+        end
+
+        @testset "Write errors" begin
+            testbuf = TimeSampleBuf(rand(Float32, 100, 2)-0.5, srate)
+            flacname = string(tempname(), ".flac")
+            redirect_stderr() do rd, wr
+                @test_throws ErrorException save(abspath(joinpath("does", "not", "exist.wav")), testbuf)
+                @test_throws ErrorException save(flacname, testbuf)
+            end
         end
 
         #
