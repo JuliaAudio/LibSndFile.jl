@@ -84,11 +84,17 @@ end
 type SndFileSink{N, SR, T} <: SampleSink{N, SR, T}
     filePtr::Ptr{Void}
     sfinfo::SF_INFO
+    pos::Int64
+
+    SndFileSink(filePtr, sfinfo) = new(filePtr, sfinfo, 1)
 end
 
 type SndFileSource{N, SR, T} <: SampleSource{N, SR, T}
     filePtr::Ptr{Void}
     sfinfo::SF_INFO
+    pos::Int64
+
+    SndFileSource(filePtr, sfinfo) = new(filePtr, sfinfo, 1)
 end
 
 SndFileSource(filePtr, sfinfo) =
@@ -122,42 +128,26 @@ end
 function Base.read(str::SndFileSource, nframes::Integer)
     # the data comes in interleaved, so we need to transpose
     arr = Array(eltype(str), nchannels(str), nframes)
+    nframes = min(nframes, str.sfinfo.frames - str.pos + 1)
     nread = sf_readf(str.filePtr, arr, nframes)
+    str.pos += nread
 
     TimeSampleBuf(arr[:, 1:nread]', samplerate(str))
 end
 
+function Base.readall(str::SndFileSource)
+    read(str, str.sfinfo.frames - str.pos + 1)
+end
+
 function load(path::File)
-    sfinfo = SF_INFO(0, 0, 0, 0, 0, 0)
-
-    filePtr = ccall((:sf_open, libsndfile), Ptr{Void},
-                    (Ptr{UInt8}, Int32, Ptr{SF_INFO}),
-                    filename(path), SFM_READ, &sfinfo)
-
-    if filePtr == C_NULL
-        errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Void},), filePtr)
-        error("LibSndFile.jl error while loading $path: ", bytestring(errmsg))
-    end
-
-    arr, nread = try
-        T = fmt_to_type(sfinfo.format)
-        nframes = sfinfo.frames
-        nchannels = sfinfo.channels
-
-        # the data comes in interleaved, so we need to transpose
-        arr = Array(T, nchannels, nframes)
-        nread = sf_readf(filePtr, arr, nframes)
-
-        (arr, nread)
+    str = loadstream(path)
+    buf = try
+        readall(str)
     finally
-        # make sure we close the file even if something goes wrong
-        err = ccall((:sf_close, libsndfile), Int32, (Ptr{Void},), filePtr)
-        if err != 0
-            error("LibSndFile.jl error while loading $path: Failed to close file")
-        end
+        close(str)
     end
 
-    TimeSampleBuf(arr[:, 1:nread]', sfinfo.samplerate)
+    buf
 end
 
 function save{T}(path::File{T}, buf::TimeSampleBuf)
