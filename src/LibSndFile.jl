@@ -84,9 +84,6 @@ end
 type SndFileSink{N, SR, T} <: SampleSink{N, SR, T}
     filePtr::Ptr{Void}
     sfinfo::SF_INFO
-    pos::Int64
-
-    SndFileSink(filePtr, sfinfo) = new(filePtr, sfinfo, 1)
 end
 
 type SndFileSource{N, SR, T} <: SampleSource{N, SR, T}
@@ -148,6 +145,51 @@ function load(path::File)
     end
 
     buf
+end
+
+savestream(path::AbstractString, args...; kwargs...) =
+    savestream(query(path), args...; kwargs...)
+
+function savestream{T}(path::File{T}, nchannels, samplerate, elemtype)
+    sfinfo = SF_INFO(0, 0, 0, 0, 0, 0)
+
+    sfinfo.samplerate = samplerate
+    sfinfo.channels = nchannels
+    sfinfo.format = formatcode(T)
+    # TODO: should we auto-convert 32-bit integer samples to 24-bit?
+    if T == format"FLAC" && elemtype != PCM16Sample
+        error("LibSndFile.jl: FLAC only supports 16-bit integer samples")
+    end
+    if T == format"OGG"
+        sfinfo.format |= SF_FORMAT_VORBIS
+    else
+        sfinfo.format |= subformatcode(elemtype)
+    end
+
+    filePtr = ccall((:sf_open, libsndfile), Ptr{Void},
+                    (Ptr{UInt8}, Int32, Ptr{SF_INFO}),
+                    filename(path), SFM_WRITE, &sfinfo)
+
+    if filePtr == C_NULL
+        errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Void},), filePtr)
+        error("LibSndFile.jl error while saving $path: "bytestring(errmsg))
+    end
+
+    SndFileSink{nchannels, samplerate, elemtype}(filePtr, sfinfo)
+end
+
+# returns the number of samples written
+function Base.write(str::SndFileSink, buf::TimeSampleBuf)
+    # the data needs to be interleaved, so we transpose
+    arr = buf.data'
+    sf_writef(str.filePtr, arr, nframes(buf))
+end
+
+function Base.close(str::SndFileSink)
+    err = ccall((:sf_close, libsndfile), Int32, (Ptr{Void},), str.filePtr)
+    if err != 0
+        error("LibSndFile.jl error while saving $path: Failed to close file")
+    end
 end
 
 function save{T}(path::File{T}, buf::TimeSampleBuf)

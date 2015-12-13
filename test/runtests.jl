@@ -170,6 +170,22 @@ try
             end
         end
 
+        @testset "Streaming writing" begin
+            fname = string(tempname(), ".wav")
+            testbuf = TimeSampleBuf(rand(Float32, 100, 2)-0.5, srate)
+            # set up a 2-channel Float32 stream
+            stream = savestream(fname, 2, srate, Float32)
+            write(stream, testbuf[1:50, :])
+            write(stream, testbuf[51:100, :])
+            close(stream)
+            buf = load(fname)
+            @test mse(buf, testbuf) < 1e-10
+        end
+
+
+        # TODO: check out what happens when samplerate, channels, etc. are wrong
+        # when reading/writing
+
         #
         #     # test seeking
         #
