@@ -105,6 +105,13 @@ try
             @test mse(buf, reference_buf) < 1e-5
         end
 
+        @testset "Streaming reading" begin
+            str = loadstream(reference_wav)
+            @test mse(read(str, 50), reference_buf[1:50, :]) < 1e-10
+            @test mse(read(str, 50), reference_buf[51:100, :]) < 1e-10
+            close(str)
+        end
+
         @testset "WAV file writing" begin
             fname = string(tempname(), ".wav")
             testbuf = TimeSampleBuf(rand(100, 2)-0.5, srate)

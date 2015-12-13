@@ -29,14 +29,14 @@ x = load("myfile.wav")
 save("myfile_mono.wav", x[:, 1] + x[:, 2])
 ```
 
-**Plot an the left channel**
+**Plot the left channel**
 ```julia
 x = load("myfile.wav")
 plot(x[:, 1]) # plots with samples on the x axis
 plot(domain(x), x[:, 1]) # plots with time on the x axis
 ```
 
-**Plot the frequency response of the left channel**
+**Plot the spectrum of the left channel**
 ```julia
 x = load("myfile.wav")
 f = fft(x) # returns a FrequencySampleBuf
@@ -45,22 +45,23 @@ plot(domain(x), x[:, 1]) # plots with frequency on the x axis
 
 **Load a long file as a stream and plot the left channel from 2s to 3s**
 ```julia
-s = load("myfile.ogg", streaming=true)
+s = loadstream("myfile.ogg")
 x = read(s, 4s)[2s..3s, 1]
+close(s)
 plot(domain(x), x)
 ```
 
 **To handle closing the file automatically (including in the case of unexpected exceptions), we support the `do` block syntax**
 
 ```julia
-data = LibSndFile.open("data/never_gonna_let_you_down.ogg", streaming=true) do f
+data = loadstream("data/never_gonna_let_you_down.ogg") do s
     readall(f)
 end
 ```
 
 **Read the first 4 seconds of an audio file and convert to Float32 format**
 ```julia
-data = load("data/never_gonna_run_around.ogg", streaming=true) do f
+data = loadstream("data/never_gonna_run_around.ogg", streaming=true) do s
     read(f, 4s, Float32)
 end
 ```

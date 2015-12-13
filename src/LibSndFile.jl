@@ -6,6 +6,9 @@ using SampleTypes
 using FileIO
 using FixedPointNumbers
 
+# TODO: move these into FileIO.jl
+export loadstream, savestream
+
 typealias PCM16Sample Fixed{Int16, 15}
 typealias PCM32Sample Fixed{Int32, 31}
 
@@ -86,6 +89,42 @@ end
 type SndFileSource{N, SR, T} <: SampleSource{N, SR, T}
     filePtr::Ptr{Void}
     sfinfo::SF_INFO
+end
+
+SndFileSource(filePtr, sfinfo) =
+    SndFileSource{sfinfo.channels, sfinfo.samplerate, fmt_to_type(sfinfo.format)}(filePtr, sfinfo)
+
+loadstream(path::AbstractString, args...; kwargs...) =
+    loadstream(query(path), args...; kwargs...)
+
+function loadstream(path::File)
+    sfinfo = SF_INFO(0, 0, 0, 0, 0, 0)
+
+    filePtr = ccall((:sf_open, libsndfile), Ptr{Void},
+                    (Ptr{UInt8}, Int32, Ptr{SF_INFO}),
+                    filename(path), SFM_READ, &sfinfo)
+
+    if filePtr == C_NULL
+        errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Void},), filePtr)
+        error("LibSndFile.jl error while loading $path: ", bytestring(errmsg))
+    end
+
+    SndFileSource(filePtr, sfinfo)
+end
+
+function Base.close(s::SndFileSource)
+    err = ccall((:sf_close, libsndfile), Int32, (Ptr{Void},), s.filePtr)
+    if err != 0
+        error("LibSndFile.jl error: Failed to close file")
+    end
+end
+
+function Base.read(str::SndFileSource, nframes::Integer)
+    # the data comes in interleaved, so we need to transpose
+    arr = Array(eltype(str), nchannels(str), nframes)
+    nread = sf_readf(str.filePtr, arr, nframes)
+
+    TimeSampleBuf(arr[:, 1:nread]', samplerate(str))
 end
 
 function load(path::File)
