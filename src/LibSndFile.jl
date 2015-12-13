@@ -194,39 +194,16 @@ end
 
 function save{T}(path::File{T}, buf::TimeSampleBuf)
     sfinfo = SF_INFO(0, 0, 0, 0, 0, 0)
+    stream = savestream(path, nchannels(buf), samplerate(buf), eltype(buf))
 
-    sfinfo.samplerate = samplerate(buf)
-    sfinfo.channels = nchannels(buf)
-    sfinfo.format = formatcode(T)
-    # TODO: should we auto-convert 32-bit integer samples to 24-bit?
-    if T == format"FLAC" && eltype(buf) != PCM16Sample
-        error("LibSndFile.jl: FLAC only supports 16-bit integer samples")
-    end
-    if T == format"OGG"
-        sfinfo.format |= SF_FORMAT_VORBIS
-    else
-        sfinfo.format |= subformatcode(eltype(buf))
-    end
-
-    filePtr = ccall((:sf_open, libsndfile), Ptr{Void},
-                    (Ptr{UInt8}, Int32, Ptr{SF_INFO}),
-                    filename(path), SFM_WRITE, &sfinfo)
-
-    if filePtr == C_NULL
-        errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Void},), filePtr)
-        error("LibSndFile.jl error while saving $path: "bytestring(errmsg))
-    end
-
-    nwritten = try
-        # the data needs to be interleaved, so we transpose
-        arr = buf.data'
-        sf_writef(filePtr, arr, nframes(buf))
+    try
+        frameswritten = write(stream, buf)
+        if frameswritten != nframes(buf)
+            error("Only wrote $frameswritten frames, expected $(nframes(buf))")
+        end
     finally
         # make sure we close the file even if something goes wrong
-        err = ccall((:sf_close, libsndfile), Int32, (Ptr{Void},), filePtr)
-        if err != 0
-            error("LibSndFile.jl error while saving $path: Failed to close file")
-        end
+        close(stream)
     end
 
     nothing
