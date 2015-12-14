@@ -100,6 +100,15 @@ SndFileSource(filePtr, sfinfo) =
 loadstream(path::AbstractString, args...; kwargs...) =
     loadstream(query(path), args...; kwargs...)
 
+function loadstream(f::Function, args...)
+    str = loadstream(args...)
+    try
+        f(str)
+    finally
+        close(str)
+    end
+end
+
 function loadstream(path::File)
     sfinfo = SF_INFO(0, 0, 0, 0, 0, 0)
 
@@ -149,6 +158,15 @@ end
 
 savestream(path::AbstractString, args...; kwargs...) =
     savestream(query(path), args...; kwargs...)
+
+function savestream(f::Function, args...)
+    stream = savestream(args...)
+    try
+        f(stream)
+    finally
+        close(stream)
+    end
+end
 
 function savestream{T}(path::File{T}, nchannels, samplerate, elemtype)
     sfinfo = SF_INFO(0, 0, 0, 0, 0, 0)

@@ -110,6 +110,11 @@ try
             @test mse(read(str, 50), reference_buf[1:50, :]) < 1e-10
             @test mse(read(str, 50), reference_buf[51:100, :]) < 1e-10
             close(str)
+            # now with do syntax
+            loadstream(reference_wav) do str
+                @test mse(read(str, 50), reference_buf[1:50, :]) < 1e-10
+                @test mse(read(str, 50), reference_buf[51:100, :]) < 1e-10
+            end
         end
 
         @testset "WAV file writing" begin
@@ -180,6 +185,18 @@ try
             close(stream)
             buf = load(fname)
             @test mse(buf, testbuf) < 1e-10
+
+            # now with do syntax
+            fname = string(tempname(), ".wav")
+            testbuf = TimeSampleBuf(rand(Float32, 100, 2)-0.5, srate)
+            # set up a 2-channel Float32 stream
+            savestream(fname, 2, srate, Float32) do stream
+                write(stream, testbuf[1:50, :])
+                write(stream, testbuf[51:100, :])
+            end
+            buf = load(fname)
+            @test mse(buf, testbuf) < 1e-10
+
         end
 
 
