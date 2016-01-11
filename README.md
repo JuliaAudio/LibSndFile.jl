@@ -64,3 +64,7 @@ data = loadstream("data/never_gonna_run_around.ogg", streaming=true) do s
     read(f, 4s, Float32)
 end
 ```
+
+## A Note on Licensing
+
+libsndfile is [licensed](http://www.mega-nerd.com/libsndfile/#Licensing) under the LGPL, which is very permissive providing that libsndfile is dynamically linked. LibSndFile.jl is licensed under the MIT license, allowing you to statically compile the wrapper into your Julia application. Remember that you must still abide by the terms of the libsndfile license when using this wrapper, in terms of whether libsndfile is statically or dynamically linked.
