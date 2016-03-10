@@ -95,7 +95,7 @@ type SndFileSource{N, SR, T} <: SampleSource{N, SR, T}
 end
 
 SndFileSource(filePtr, sfinfo) =
-    SndFileSource{sfinfo.channels, sfinfo.samplerate, fmt_to_type(sfinfo.format)}(filePtr, sfinfo)
+    SndFileSource{Int(sfinfo.channels), Int(sfinfo.samplerate), fmt_to_type(sfinfo.format)}(filePtr, sfinfo)
 
 loadstream(path::AbstractString, args...; kwargs...) =
     loadstream(query(path), args...; kwargs...)
@@ -131,14 +131,15 @@ function Base.close(s::SndFileSource)
     end
 end
 
-function Base.read(str::SndFileSource, nframes::Integer)
-    # the data comes in interleaved, so we need to transpose
-    arr = Array(eltype(str), nchannels(str), nframes)
-    nframes = min(nframes, str.sfinfo.frames - str.pos + 1)
-    nread = sf_readf(str.filePtr, arr, nframes)
+function Base.read!{N, SR, T}(str::SndFileSource{N, SR, T}, buf::SampleBuf{N, SR, T})
+    frames = min(nframes(buf), str.sfinfo.frames - str.pos + 1)
+    arr = Array(T, N, frames)
+    nread = sf_readf(str.filePtr, arr, frames)
     str.pos += nread
+    # the data comes in interleaved, so we need to transpose
+    buf[1:nread, :] = arr'
 
-    TimeSampleBuf(arr[:, 1:nread]', samplerate(str))
+    nread
 end
 
 function Base.readall(str::SndFileSource)
@@ -193,7 +194,7 @@ function savestream{T}(path::File{T}, nchannels, samplerate, elemtype)
         error("LibSndFile.jl error while saving $path: "bytestring(errmsg))
     end
 
-    SndFileSink{nchannels, samplerate, elemtype}(filePtr, sfinfo)
+    SndFileSink{Int(nchannels), Int(samplerate), elemtype}(filePtr, sfinfo)
 end
 
 # returns the number of samples written
