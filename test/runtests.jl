@@ -65,7 +65,7 @@ try
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
-            @test domain(buf) == collect(0:99)/srate * s
+            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/srate)
             @test mse(buf, reference_buf) < 1e-10
         end
 
@@ -91,7 +91,7 @@ try
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
-            @test domain(buf) == collect(0:99)/srate * s
+            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/srate)
             @test mse(buf, reference_buf) < 1e-10
         end
 
@@ -100,7 +100,7 @@ try
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
-            @test domain(buf) == collect(0:99)/srate * s
+            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/srate)
             # lossy compression, so relax the accuracy a bit
             @test mse(buf, reference_buf) < 1e-5
         end
@@ -125,7 +125,7 @@ try
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
-            @test domain(buf) == collect(0:99)/srate * s
+            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/srate)
             @test mse(buf, testbuf) < 1e-10
         end
 
@@ -137,7 +137,7 @@ try
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
-            @test domain(buf) == collect(0:99)/srate * s
+            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/srate)
             # noise doesn't compress very well...
             @test mse(buf, testbuf) < 0.05
         end
@@ -152,7 +152,7 @@ try
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
-            @test domain(buf) == collect(0:99)/srate * s
+            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/srate)
             @test mse(buf, testbuf) < 1e-10
         end
 

@@ -3,6 +3,7 @@ __precompile__()
 module LibSndFile
 
 using SampleTypes
+import SampleTypes: nchannels, nframes, samplerate, unsafe_read!, unsafe_write
 using FileIO
 using FixedPointNumbers
 
@@ -81,12 +82,17 @@ type SF_INFO
     seekable::Int32
 end
 
-type SndFileSink{N, SR, T} <: SampleSink{N, SR, T}
+type SndFileSink{T} <: SampleSink{T}
     filePtr::Ptr{Void}
     sfinfo::SF_INFO
 end
 
-type SndFileSource{N, SR, T} <: SampleSource{N, SR, T}
+SndFileSink(T, filePtr, sfinfo) = SndFileSink{T}(filePtr, sfinfo)
+
+nchannels(sink::SndFileSink) = Int(sink.sfinfo.channels)
+samplerate(sink::SndFileSink) = SampleRate(sink.sfinfo.samplerate)
+
+type SndFileSource{T} <: SampleSource{T}
     filePtr::Ptr{Void}
     sfinfo::SF_INFO
     pos::Int64
@@ -95,7 +101,11 @@ type SndFileSource{N, SR, T} <: SampleSource{N, SR, T}
 end
 
 SndFileSource(filePtr, sfinfo) =
-    SndFileSource{Int(sfinfo.channels), Int(sfinfo.samplerate), fmt_to_type(sfinfo.format)}(filePtr, sfinfo)
+    SndFileSource{fmt_to_type(sfinfo.format)}(filePtr, sfinfo)
+
+nchannels(source::SndFileSource) = Int(source.sfinfo.channels)
+samplerate(source::SndFileSource) = SampleRate(source.sfinfo.samplerate)
+nframes(source::SndFileSource) = source.sfinfo.frames
 
 loadstream(path::AbstractString, args...; kwargs...) =
     loadstream(query(path), args...; kwargs...)
@@ -131,11 +141,11 @@ function Base.close(s::SndFileSource)
     end
 end
 
-function Base.read!{N, SR, T}(str::SndFileSource{N, SR, T}, buf::SampleBuf{N, SR, T})
-    frames = min(nframes(buf), str.sfinfo.frames - str.pos + 1)
-    arr = Array(T, N, frames)
-    nread = sf_readf(str.filePtr, arr, frames)
-    str.pos += nread
+function unsafe_read!(source::SndFileSource, buf::SampleBuf)
+    frames = min(nframes(buf), nframes(source) - source.pos + 1)
+    arr = Array(eltype(source), nchannels(source), frames)
+    nread = sf_readf(source.filePtr, arr, frames)
+    source.pos += nread
     # the data comes in interleaved, so we need to transpose
     buf[1:nread, :] = arr'
 
@@ -143,7 +153,7 @@ function Base.read!{N, SR, T}(str::SndFileSource{N, SR, T}, buf::SampleBuf{N, SR
 end
 
 function Base.readall(str::SndFileSource)
-    read(str, str.sfinfo.frames - str.pos + 1)
+    read(str, nframes(str) - str.pos + 1)
 end
 
 function load(path::File)
@@ -194,11 +204,11 @@ function savestream{T}(path::File{T}, nchannels, samplerate, elemtype)
         error("LibSndFile.jl error while saving $path: "bytestring(errmsg))
     end
 
-    SndFileSink{Int(nchannels), Int(samplerate), elemtype}(filePtr, sfinfo)
+    SndFileSink(elemtype, filePtr, sfinfo)
 end
 
 # returns the number of samples written
-function Base.write(str::SndFileSink, buf::TimeSampleBuf)
+function unsafe_write(str::SndFileSink, buf::TimeSampleBuf)
     # the data needs to be interleaved, so we transpose
     arr = buf.data'
     sf_writef(str.filePtr, arr, nframes(buf))
