@@ -150,14 +150,16 @@ end
 function unsafe_read!(source::SndFileSource, buf::SampleBuf)
     total = min(nframes(buf), nframes(source) - source.pos + 1)
     nread = 0
+    readbuf = source.readbuf
+    transbuf = source.transbuf
     while nread < total
-        n = min(size(source.readbuf, 1), total - nread)
-        nr = sf_readf(source.filePtr, source.readbuf, n)
+        n = min(size(readbuf, 2), total - nread)
+        nr = sf_readf(source.filePtr, readbuf, n)
         # the data comes in interleaved, so we need to transpose
-        transpose!(source.transbuf, source.readbuf)
+        transpose!(transbuf, readbuf)
         for ch in 1:nchannels(buf)
             for i in 1:nr
-                buf[nread+(i), ch] = source.transbuf[i, ch]
+                buf[nread+(i), ch] = transbuf[i, ch]
             end
         end
         source.pos += nr
