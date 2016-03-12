@@ -96,8 +96,14 @@ type SndFileSource{T} <: SampleSource{T}
     filePtr::Ptr{Void}
     sfinfo::SF_INFO
     pos::Int64
+    readbuf::Array{T, 2}
+    transbuf::Array{T, 2}
 
-    SndFileSource(filePtr, sfinfo) = new(filePtr, sfinfo, 1)
+    function SndFileSource(filePtr, sfinfo, bufsize=4096)
+        readbuf = Array(T, sfinfo.channels, bufsize)
+        transbuf = Array(T, bufsize, sfinfo.channels)
+        new(filePtr, sfinfo, 1, readbuf, transbuf)
+    end
 end
 
 SndFileSource(filePtr, sfinfo) =
@@ -142,12 +148,22 @@ function Base.close(s::SndFileSource)
 end
 
 function unsafe_read!(source::SndFileSource, buf::SampleBuf)
-    frames = min(nframes(buf), nframes(source) - source.pos + 1)
-    arr = Array(eltype(source), nchannels(source), frames)
-    nread = sf_readf(source.filePtr, arr, frames)
-    source.pos += nread
-    # the data comes in interleaved, so we need to transpose
-    buf[1:nread, :] = arr'
+    total = min(nframes(buf), nframes(source) - source.pos + 1)
+    nread = 0
+    while nread < total
+        n = min(size(source.readbuf, 1), total - nread)
+        nr = sf_readf(source.filePtr, source.readbuf, n)
+        # the data comes in interleaved, so we need to transpose
+        transpose!(source.transbuf, source.readbuf)
+        for ch in 1:nchannels(buf)
+            for i in 1:nr
+                buf[nread+(i), ch] = source.transbuf[i, ch]
+            end
+        end
+        source.pos += nr
+        nread += nr
+        nr == n || break
+    end
 
     nread
 end
