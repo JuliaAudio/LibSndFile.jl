@@ -91,7 +91,7 @@ end
 SndFileSink(filePtr, sfinfo) = SndFileSink(filePtr, sfinfo)
 
 nchannels(sink::SndFileSink) = Int(sink.sfinfo.channels)
-samplerate(sink::SndFileSink) = sink.sfinfo.samplerate * Hz
+samplerate(sink::SndFileSink) = quantity(Int, Hz)(sink.sfinfo.samplerate)
 Base.eltype(sink::SndFileSink) = fmt_to_type(sink.sfinfo.format)
 
 type SndFileSource{T} <: SampleSource
@@ -112,7 +112,7 @@ function SndFileSource(filePtr, sfinfo, bufsize=4096)
 end
 
 nchannels(source::SndFileSource) = Int(source.sfinfo.channels)
-samplerate(source::SndFileSource) = source.sfinfo.samplerate * Hz
+samplerate(source::SndFileSource) = quantity(Int, Hz)(source.sfinfo.samplerate)
 nframes(source::SndFileSource) = source.sfinfo.frames
 Base.eltype{T}(source::SndFileSource{T}) = T
 
