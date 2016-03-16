@@ -35,7 +35,7 @@ end
 
 try
     @testset "LibSndFile Tests" begin
-        srate = 44100
+        srate = 44100Hz
         # reference file generated with Audacity. Careful to turn dithering off
         # on export for deterministic output!
         reference_wav = Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp.wav")
@@ -44,7 +44,7 @@ try
         reference_wav_pcm24 = Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp_pcm24.wav")
         reference_ogg = Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp.ogg")
         reference_flac = Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp.flac")
-        reference_buf = gen_reference(srate)
+        reference_buf = gen_reference(srate/Hz)
 
         @testset "Read errors" begin
             redirect_stderr() do rd, wr
@@ -65,7 +65,7 @@ try
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
-            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/srate)
+            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/(srate/Hz))
             @test mse(buf, reference_buf) < 1e-10
         end
 
@@ -91,7 +91,7 @@ try
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
-            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/srate)
+            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/(srate/Hz))
             @test mse(buf, reference_buf) < 1e-10
         end
 
@@ -100,7 +100,7 @@ try
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
-            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/srate)
+            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/(srate/Hz))
             # lossy compression, so relax the accuracy a bit
             @test mse(buf, reference_buf) < 1e-5
         end
@@ -119,25 +119,27 @@ try
 
         @testset "WAV file writing" begin
             fname = string(tempname(), ".wav")
-            testbuf = TimeSampleBuf(rand(100, 2)-0.5, srate)
+            testbuf = SampleBuf(rand(100, 2)-0.5, srate)
             save(fname, testbuf)
             buf = load(fname)
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
-            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/srate)
+            # strip units because isapprox doesn't support them...
+            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/(srate/Hz))
             @test mse(buf, testbuf) < 1e-10
         end
 
         @testset "OGG file writing" begin
             fname = string(tempname(), ".ogg")
-            testbuf = TimeSampleBuf(rand(100, 2)-0.5, srate)
+            testbuf = SampleBuf(rand(Float32, 100, 2)-0.5, srate)
             save(fname, testbuf)
             buf = load(fname)
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
-            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/srate)
+            # strip units because isapprox doesn't support them...
+            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/(srate/Hz))
             # noise doesn't compress very well...
             @test mse(buf, testbuf) < 0.05
         end
@@ -146,20 +148,21 @@ try
             fname = string(tempname(), ".flac")
             # TODO: this conversion fails sometimes because of FixedPointNumbers.jl#37
             arr = convert(Array{Fixed{Int16, 15}}, rand(100, 2)-0.5)
-            testbuf = TimeSampleBuf(arr, srate)
+            testbuf = SampleBuf(arr, srate)
             save(fname, testbuf)
             buf = load(fname)
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
-            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/srate)
+            # strip units because isapprox doesn't support them...
+            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/(srate/Hz))
             @test mse(buf, testbuf) < 1e-10
         end
 
         @testset "Writing $T data" for T in [Fixed{Int16, 15}, Fixed{Int32, 31}, Float32, Float64]
             fname = string(tempname(), ".wav")
             arr = convert(Array{T}, rand(100, 2)-0.5)
-            testbuf = TimeSampleBuf(arr, srate)
+            testbuf = SampleBuf(arr, srate)
             save(fname, testbuf)
             buf = load(fname)
             @test eltype(buf) == T
@@ -167,7 +170,7 @@ try
         end
 
         @testset "Write errors" begin
-            testbuf = TimeSampleBuf(rand(Float32, 100, 2)-0.5, srate)
+            testbuf = SampleBuf(rand(Float32, 100, 2)-0.5, srate)
             flacname = string(tempname(), ".flac")
             redirect_stderr() do rd, wr
                 @test_throws ErrorException save(abspath(joinpath("does", "not", "exist.wav")), testbuf)
@@ -177,7 +180,7 @@ try
 
         @testset "Streaming writing" begin
             fname = string(tempname(), ".wav")
-            testbuf = TimeSampleBuf(rand(Float32, 100, 2)-0.5, srate)
+            testbuf = SampleBuf(rand(Float32, 100, 2)-0.5, srate)
             # set up a 2-channel Float32 stream
             stream = savestream(fname, 2, srate, Float32)
             write(stream, testbuf[1:50, :])
@@ -188,7 +191,7 @@ try
 
             # now with do syntax
             fname = string(tempname(), ".wav")
-            testbuf = TimeSampleBuf(rand(Float32, 100, 2)-0.5, srate)
+            testbuf = SampleBuf(rand(Float32, 100, 2)-0.5, srate)
             # set up a 2-channel Float32 stream
             savestream(fname, 2, srate, Float32) do stream
                 write(stream, testbuf[1:50, :])

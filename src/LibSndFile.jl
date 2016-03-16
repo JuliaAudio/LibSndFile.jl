@@ -6,6 +6,7 @@ using SampleTypes
 import SampleTypes: nchannels, nframes, samplerate, unsafe_read!, unsafe_write
 using FileIO
 using FixedPointNumbers
+using SIUnits
 
 # TODO: move these into FileIO.jl
 export loadstream, savestream
@@ -82,36 +83,38 @@ type SF_INFO
     seekable::Int32
 end
 
-type SndFileSink{T} <: SampleSink{T}
+type SndFileSink <: SampleSink
     filePtr::Ptr{Void}
     sfinfo::SF_INFO
 end
 
-SndFileSink(T, filePtr, sfinfo) = SndFileSink{T}(filePtr, sfinfo)
+SndFileSink(filePtr, sfinfo) = SndFileSink(filePtr, sfinfo)
 
 nchannels(sink::SndFileSink) = Int(sink.sfinfo.channels)
-samplerate(sink::SndFileSink) = SampleRate(sink.sfinfo.samplerate)
+samplerate(sink::SndFileSink) = sink.sfinfo.samplerate * Hz
+Base.eltype(sink::SndFileSink) = fmt_to_type(sink.sfinfo.format)
 
-type SndFileSource{T} <: SampleSource{T}
+type SndFileSource{T} <: SampleSource
     filePtr::Ptr{Void}
     sfinfo::SF_INFO
     pos::Int64
     readbuf::Array{T, 2}
     transbuf::Array{T, 2}
-
-    function SndFileSource(filePtr, sfinfo, bufsize=4096)
-        readbuf = Array(T, sfinfo.channels, bufsize)
-        transbuf = Array(T, bufsize, sfinfo.channels)
-        new(filePtr, sfinfo, 1, readbuf, transbuf)
-    end
 end
 
-SndFileSource(filePtr, sfinfo) =
-    SndFileSource{fmt_to_type(sfinfo.format)}(filePtr, sfinfo)
+
+function SndFileSource(filePtr, sfinfo, bufsize=4096)
+    T = fmt_to_type(sfinfo.format)
+    readbuf = Array(T, sfinfo.channels, bufsize)
+    transbuf = Array(T, bufsize, sfinfo.channels)
+
+    SndFileSource(filePtr, sfinfo, 1, readbuf, transbuf)
+end
 
 nchannels(source::SndFileSource) = Int(source.sfinfo.channels)
-samplerate(source::SndFileSource) = SampleRate(source.sfinfo.samplerate)
+samplerate(source::SndFileSource) = source.sfinfo.samplerate * Hz
 nframes(source::SndFileSource) = source.sfinfo.frames
+Base.eltype{T}(source::SndFileSource{T}) = T
 
 loadstream(path::AbstractString, args...; kwargs...) =
     loadstream(query(path), args...; kwargs...)
@@ -197,6 +200,11 @@ function savestream(f::Function, args...)
     end
 end
 
+# if the samplerate is given in Hz, strip it off
+function savestream{SRT}(path::File, nchannels, samplerate::quantity(SRT, Hz), elemtype)
+    savestream(path, nchannels, samplerate/Hz, elemtype)
+end
+
 function savestream{T}(path::File{T}, nchannels, samplerate, elemtype)
     sfinfo = SF_INFO(0, 0, 0, 0, 0, 0)
 
@@ -222,11 +230,11 @@ function savestream{T}(path::File{T}, nchannels, samplerate, elemtype)
         error("LibSndFile.jl error while saving $path: "bytestring(errmsg))
     end
 
-    SndFileSink(elemtype, filePtr, sfinfo)
+    SndFileSink(filePtr, sfinfo)
 end
 
 # returns the number of samples written
-function unsafe_write(str::SndFileSink, buf::TimeSampleBuf)
+function unsafe_write(str::SndFileSink, buf::SampleBuf)
     # the data needs to be interleaved, so we transpose
     arr = buf.data'
     sf_writef(str.filePtr, arr, nframes(buf))
@@ -239,7 +247,7 @@ function Base.close(str::SndFileSink)
     end
 end
 
-function save{T}(path::File{T}, buf::TimeSampleBuf)
+function save{T}(path::File{T}, buf::SampleBuf)
     sfinfo = SF_INFO(0, 0, 0, 0, 0, 0)
     stream = savestream(path, nchannels(buf), samplerate(buf), eltype(buf))
 
