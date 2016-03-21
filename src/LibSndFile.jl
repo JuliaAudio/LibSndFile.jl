@@ -88,8 +88,6 @@ type SndFileSink <: SampleSink
     sfinfo::SF_INFO
 end
 
-SndFileSink(filePtr, sfinfo) = SndFileSink(filePtr, sfinfo)
-
 nchannels(sink::SndFileSink) = Int(sink.sfinfo.channels)
 samplerate(sink::SndFileSink) = quantity(Int, Hz)(sink.sfinfo.samplerate)
 Base.eltype(sink::SndFileSink) = fmt_to_type(sink.sfinfo.format)
