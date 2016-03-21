@@ -5,11 +5,15 @@ module LibSndFile
 using SampleTypes
 import SampleTypes: nchannels, nframes, samplerate, unsafe_read!, unsafe_write
 using FileIO
+import FileIO: load, save
 using FixedPointNumbers
 using SIUnits
 
 # TODO: move these into FileIO.jl
 export loadstream, savestream
+
+# Re-export from FileIO
+export load, save
 
 typealias PCM16Sample Fixed{Int16, 15}
 typealias PCM32Sample Fixed{Int32, 31}
@@ -99,7 +103,6 @@ type SndFileSource{T} <: SampleSource
     readbuf::Array{T, 2}
     transbuf::Array{T, 2}
 end
-
 
 function SndFileSource(filePtr, sfinfo, bufsize=4096)
     T = fmt_to_type(sfinfo.format)
