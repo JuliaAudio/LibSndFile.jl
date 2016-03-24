@@ -88,15 +88,21 @@ type SF_INFO
 end
 
 type SndFileSink <: SampleSink
+    path::UTF8String
     filePtr::Ptr{Void}
     sfinfo::SF_INFO
+    nframes::Int64
+
+    SndFileSink(path, filePtr, sfinfo) = new(path, filePtr, sfinfo, 0)
 end
 
 nchannels(sink::SndFileSink) = Int(sink.sfinfo.channels)
 samplerate(sink::SndFileSink) = quantity(Int, Hz)(sink.sfinfo.samplerate)
+nframes(sink::SndFileSink) = sink.nframes
 Base.eltype(sink::SndFileSink) = fmt_to_type(sink.sfinfo.format)
 
 type SndFileSource{T} <: SampleSource
+    path::UTF8String
     filePtr::Ptr{Void}
     sfinfo::SF_INFO
     pos::Int64
@@ -104,18 +110,31 @@ type SndFileSource{T} <: SampleSource
     transbuf::Array{T, 2}
 end
 
-function SndFileSource(filePtr, sfinfo, bufsize=4096)
+function SndFileSource(path, filePtr, sfinfo, bufsize=4096)
     T = fmt_to_type(sfinfo.format)
     readbuf = Array(T, sfinfo.channels, bufsize)
     transbuf = Array(T, bufsize, sfinfo.channels)
 
-    SndFileSource(filePtr, sfinfo, 1, readbuf, transbuf)
+    SndFileSource(path, filePtr, sfinfo, 1, readbuf, transbuf)
 end
 
 nchannels(source::SndFileSource) = Int(source.sfinfo.channels)
 samplerate(source::SndFileSource) = quantity(Int, Hz)(source.sfinfo.samplerate)
 nframes(source::SndFileSource) = source.sfinfo.frames
 Base.eltype{T}(source::SndFileSource{T}) = T
+
+function Base.show(io::IO, s::Union{SndFileSource, SndFileSink})
+    println(io, typeof(s))
+    println(io, "  path: \"$(s.path)\"")
+    println(io, "  channels: ", nchannels(s))
+    println(io, "  samplerate: ", samplerate(s))
+    # SndFileSinks don't have a position and we're always at the end
+    pos = isa(s, SndFileSource) ? s.pos-1 : nframes(s)
+    postime = float((pos)/samplerate(s))
+    endtime = float((nframes(s))/samplerate(s))
+    println(io, "  position: $(pos) of $(nframes(s)) frames")
+    @printf(io, "            %0.2f of %0.2f seconds", postime, endtime)
+end
 
 loadstream(path::AbstractString, args...; kwargs...) =
     loadstream(query(path), args...; kwargs...)
@@ -141,7 +160,7 @@ function loadstream(path::File)
         error("LibSndFile.jl error while loading $path: ", bytestring(errmsg))
     end
 
-    SndFileSource(filePtr, sfinfo)
+    SndFileSource(filename(path), filePtr, sfinfo)
 end
 
 function Base.close(s::SndFileSource)
@@ -231,13 +250,14 @@ function savestream{T}(path::File{T}, nchannels, samplerate, elemtype)
         error("LibSndFile.jl error while saving $path: "bytestring(errmsg))
     end
 
-    SndFileSink(filePtr, sfinfo)
+    SndFileSink(filename(path), filePtr, sfinfo)
 end
 
 # returns the number of samples written
 function unsafe_write(str::SndFileSink, buf::SampleBuf)
     # the data needs to be interleaved, so we transpose
     arr = buf.data'
+    str.nframes += nframes(buf)
     sf_writef(str.filePtr, arr, nframes(buf))
 end
 

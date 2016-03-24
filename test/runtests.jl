@@ -107,6 +107,7 @@ try
 
         @testset "Streaming reading" begin
             str = loadstream(reference_wav)
+            @test nframes(str) == 100
             @test mse(read(str, 50), reference_buf[1:50, :]) < 1e-10
             @test mse(read(str, 50), reference_buf[51:100, :]) < 1e-10
             close(str)
@@ -200,6 +201,57 @@ try
             buf = load(fname)
             @test mse(buf, testbuf) < 1e-10
 
+        end
+
+        @testset "Sink Display" begin
+            fname = string(tempname(), ".wav")
+            testbuf = SampleBuf(rand(Float32, 10000, 2)-0.5, srate)
+            # set up a 2-channel Float32 stream
+            stream = savestream(fname, 2, srate, Float32)
+            io = IOBuffer()
+            show(io, stream)
+            @test takebuf_string(io) == """
+            LibSndFile.SndFileSink
+              path: "$fname"
+              channels: 2
+              samplerate: 44100 s⁻¹
+              position: 0 of 0 frames
+                        0.00 of 0.00 seconds"""
+            write(stream, testbuf)
+            show(io, stream)
+            @test takebuf_string(io) == """
+            LibSndFile.SndFileSink
+              path: "$fname"
+              channels: 2
+              samplerate: 44100 s⁻¹
+              position: 10000 of 10000 frames
+                        0.23 of 0.23 seconds"""
+        end
+
+        @testset "Source Display" begin
+            fname = string(tempname(), ".wav")
+            testbuf = SampleBuf(rand(Float32, 10000, 2)-0.5, srate)
+            save(fname, testbuf)
+            # set up a 2-channel Float32 stream
+            stream = loadstream(fname)
+            io = IOBuffer()
+            show(io, stream)
+            @test takebuf_string(io) == """
+            LibSndFile.SndFileSource{Float32}
+              path: "$fname"
+              channels: 2
+              samplerate: 44100 s⁻¹
+              position: 0 of 10000 frames
+                        0.00 of 0.23 seconds"""
+            read(stream, 5000)
+            show(io, stream)
+            @test takebuf_string(io) == """
+            LibSndFile.SndFileSource{Float32}
+              path: "$fname"
+              channels: 2
+              samplerate: 44100 s⁻¹
+              position: 5000 of 10000 frames
+                        0.11 of 0.23 seconds"""
         end
 
 
