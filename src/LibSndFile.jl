@@ -2,8 +2,8 @@ __precompile__()
 
 module LibSndFile
 
-using SampleTypes
-import SampleTypes: nchannels, nframes, samplerate, unsafe_read!, unsafe_write
+using SampledSignals
+import SampledSignals: nchannels, nframes, samplerate, unsafe_read!, unsafe_write
 using FileIO
 import FileIO: load, save
 using FixedPointNumbers

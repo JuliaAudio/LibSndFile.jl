@@ -7,7 +7,7 @@ else
 end
 
 using LibSndFile
-using SampleTypes
+using SampledSignals
 using FileIO
 using FixedPointNumbers
 
