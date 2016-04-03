@@ -5,7 +5,7 @@ using BinDeps
 ENV["JULIA_ROOT"] = abspath(JULIA_HOME, "../../")
 
 # include alias for WinRPM library
-libsndfile = library_dependency("libsndfile", aliases=["libsndfile1"])
+libsndfile = library_dependency("libsndfile", aliases=["libsndfile-1"])
 
 provides(AptGet, "libsndfile1-dev", libsndfile)
 provides(Pacman, "libsndfile", libsndfile)
