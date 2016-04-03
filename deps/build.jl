@@ -4,12 +4,11 @@ using BinDeps
 
 ENV["JULIA_ROOT"] = abspath(JULIA_HOME, "../../")
 
-libsndfile = library_dependency("libsndfile")
+# include alias for WinRPM library
+libsndfile = library_dependency("libsndfile", aliases=["libsndfile-1"])
 
-# TODO: add other providers with correct names
 provides(AptGet, "libsndfile1-dev", libsndfile)
 provides(Pacman, "libsndfile", libsndfile)
-
 
 @osx_only begin
     using Homebrew
