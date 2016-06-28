@@ -21,7 +21,9 @@ typealias PCM32Sample Fixed{Int32, 31}
 function __init__()
     # this needs to be run when the module is loaded at run-time, even if
     # the module is precompiled.
+    del_format(format"WAV")
     add_format(format"WAV", detectwav, ".wav", [:LibSndFile])
+    del_format(format"FLAC")
     add_format(format"FLAC", "fLaC", ".flac", [:LibSndFile])
     add_format(format"OGG", "OggS", [".ogg", ".oga"], [:LibSndFile])
 end
