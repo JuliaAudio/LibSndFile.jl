@@ -2,6 +2,10 @@ __precompile__()
 
 module LibSndFile
 
+using Compat
+# we should be able to remove this and rename to String when we drop 0.4 support
+import Compat: UTF8String
+
 using SampledSignals
 import SampledSignals: nchannels, nframes, samplerate, unsafe_read!, unsafe_write
 using FileIO
@@ -52,10 +56,10 @@ subformatcode(::Type{Float64}) = SF_FORMAT_DOUBLE
 # WAV is a subtype of RIFF, as is AVI
 function detectwav(io)
     seekstart(io)
-    magic = ascii(read(io, UInt8, 4))
+    magic = UTF8String(read(io, UInt8, 4))
     magic == "RIFF" || return false
     seek(io, 8)
-    submagic = ascii(read(io, UInt8, 4))
+    submagic = UTF8String(read(io, UInt8, 4))
 
     submagic == "WAVE"
 end
