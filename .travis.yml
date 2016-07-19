@@ -14,7 +14,7 @@ script:
  - julia -e 'Pkg.clone("https://github.com/JuliaAudio/SampledSignals.jl.git")'
  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
  # needs FileIO master until FileIO.jl#69 gets tagged into a release
- - julia -e 'Pkg.checkout("FileIO")'
+ - julia -e 'Pkg.add("FileIO"); Pkg.checkout("FileIO")'
  - julia -e 'Pkg.clone(pwd()); Pkg.build("LibSndFile"); Pkg.test("LibSndFile"; coverage=true)'
 after_success:
   - julia -e 'cd(Pkg.dir("LibSndFile")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'
