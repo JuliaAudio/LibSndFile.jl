@@ -29,6 +29,8 @@ build_script:
   - IF EXIST .git\shallow (git fetch --unshallow)
   - C:\projects\julia\bin\julia -e "versioninfo();
       Pkg.clone(pwd(), \"LibSndFile\"); Pkg.build(\"LibSndFile\")"
+ # needs FileIO master until FileIO.jl#69 gets tagged into a release
+  - C:\projects\julia\bin\julia -e "Pkg.checkout(\"FileIO\")"
 
 test_script:
   - C:\projects\julia\bin\julia --check-bounds=yes -e "Pkg.test(\"LibSndFile\")"
