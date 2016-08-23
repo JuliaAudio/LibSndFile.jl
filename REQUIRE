@@ -1,8 +1,8 @@
 julia 0.4
 BinDeps
-FileIO
+FileIO 0.1.1
 FixedPointNumbers
-SampledSignals
+SampledSignals 0.1.0
 SIUnits
 @osx Homebrew
 @windows WinRPM
