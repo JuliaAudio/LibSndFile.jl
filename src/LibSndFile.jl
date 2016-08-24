@@ -163,7 +163,7 @@ function loadstream(path::File)
 
     if filePtr == C_NULL
         errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Void},), filePtr)
-        error("LibSndFile.jl error while loading $path: ", bytestring(errmsg))
+        error("LibSndFile.jl error while loading $path: ", unsafe_string(errmsg))
     end
 
     SndFileSource(filename(path), filePtr, sfinfo)
@@ -253,7 +253,7 @@ function savestream{T}(path::File{T}, nchannels, samplerate, elemtype)
 
     if filePtr == C_NULL
         errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Void},), filePtr)
-        error("LibSndFile.jl error while saving $path: "bytestring(errmsg))
+        error("LibSndFile.jl error while saving $path: ", unsafe_string(errmsg))
     end
 
     SndFileSink(filename(path), filePtr, sfinfo)

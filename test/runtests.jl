@@ -21,18 +21,6 @@ function gen_reference(srate)
     0.5sin(phase)
 end
 
-function Base.redirect_stderr(f::Function)
-    STDERR_orig = STDERR
-    (rd, rw) = redirect_stderr()
-    try
-        f(rd, rw)
-    finally
-        close(rw) # makes sure all writes are flushed
-        close(rd)
-        redirect_stderr(STDERR_orig)
-    end
-end
-
 try
     @testset "LibSndFile Tests" begin
         srate = 44100Hz
@@ -47,9 +35,7 @@ try
         reference_buf = gen_reference(srate/Hz)
 
         @testset "Read errors" begin
-            redirect_stderr() do rd, wr
-                @test_throws ErrorException load("doesnotexist.wav")
-            end
+            @test_throws ErrorException load("doesnotexist.wav")
         end
 
         @testset "WAV file detection" begin
@@ -173,10 +159,8 @@ try
         @testset "Write errors" begin
             testbuf = SampleBuf(rand(Float32, 100, 2)-0.5, srate)
             flacname = string(tempname(), ".flac")
-            redirect_stderr() do rd, wr
-                @test_throws ErrorException save(abspath(joinpath("does", "not", "exist.wav")), testbuf)
-                @test_throws ErrorException save(flacname, testbuf)
-            end
+            @test_throws ErrorException save(abspath(joinpath("does", "not", "exist.wav")), testbuf)
+            @test_throws ErrorException save(flacname, testbuf)
         end
 
         @testset "Streaming writing" begin
