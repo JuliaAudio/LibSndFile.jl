@@ -2,7 +2,7 @@ LibSndFile.jl
 =============
 
 [![Build Status](https://travis-ci.org/JuliaAudio/LibSndFile.jl.svg?branch=master)] (https://travis-ci.org/JuliaAudio/LibSndFile.jl)
-[![Build status](https://ci.appveyor.com/api/projects/status/1wdo413vf375i1vr?svg=true)](https://ci.appveyor.com/project/ssfrr/libsndfile-jl)
+[![Build status](https://ci.appveyor.com/api/projects/status/1wdo413vf375i1vr/branch/master?svg=true)](https://ci.appveyor.com/project/ssfrr/libsndfile-jl/branch/master)
 [![codecov.io](https://codecov.io/github/JuliaAudio/LibSndFile.jl/coverage.svg?branch=master)](https://codecov.io/github/JuliaAudio/LibSndFile.jl?branch=master)
 
 LibSndFile.jl is a wrapper for [libsndfile](http://www.mega-nerd.com/libsndfile/), and supports a wide variety of file and sample formats. The package uses the [FileIO](https://github.com/JuliaIO/FileIO.jl) `load` and `save` interface to automatically figure out the file type of the file to be opened, and the file contents are represented as a `SampleBuf`. For streaming I/O the LibSndFile.jl library also has an `open` method accessible with `LibSndFile.open`, which has a similar interface to `Base.open`. The results are represented as a `SampleSource` (for reading), or a `SampleSink` (for writing). These buffer and stream types are defined in the [SampledSignals](https://github.com/JuliaAudio/SampledSignals.jl) package.
