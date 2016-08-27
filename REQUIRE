@@ -3,7 +3,7 @@ BinDeps
 FileIO 0.1.1
 FixedPointNumbers
 SampledSignals 0.1.0
-Compat 0.1.1
+Compat 0.8.8
 SIUnits
 @osx Homebrew
 @windows WinRPM
