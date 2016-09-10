@@ -3,8 +3,8 @@ __precompile__()
 module LibSndFile
 
 using Compat
-# we should be able to remove this and rename to String when we drop 0.4 support
-import Compat: UTF8String
+# we should be able to remove UTF8String and rename to String when we drop 0.4 support
+import Compat: UTF8String, view
 
 using SampledSignals
 import SampledSignals: nchannels, nframes, samplerate, unsafe_read!, unsafe_write
@@ -99,14 +99,12 @@ type SndFileSink{T} <: SampleSink
     sfinfo::SF_INFO
     nframes::Int64
     writebuf::Array{T, 2}
-    transbuf::Array{T, 2}
 end
 
 function SndFileSink(path, filePtr, sfinfo, bufsize=4096)
     T = fmt_to_type(sfinfo.format)
     writebuf = Array(T, sfinfo.channels, bufsize)
-    transbuf = Array(T, bufsize, sfinfo.channels)
-    SndFileSink(path, filePtr, sfinfo, 0, writebuf, transbuf)
+    SndFileSink(path, filePtr, sfinfo, 0, writebuf)
 end
 
 nchannels(sink::SndFileSink) = Int(sink.sfinfo.channels)
@@ -120,15 +118,13 @@ type SndFileSource{T} <: SampleSource
     sfinfo::SF_INFO
     pos::Int64
     readbuf::Array{T, 2}
-    transbuf::Array{T, 2}
 end
 
 function SndFileSource(path, filePtr, sfinfo, bufsize=4096)
     T = fmt_to_type(sfinfo.format)
     readbuf = Array(T, sfinfo.channels, bufsize)
-    transbuf = Array(T, bufsize, sfinfo.channels)
 
-    SndFileSource(path, filePtr, sfinfo, 1, readbuf, transbuf)
+    SndFileSource(path, filePtr, sfinfo, 1, readbuf)
 end
 
 nchannels(source::SndFileSource) = Int(source.sfinfo.channels)
@@ -187,18 +183,11 @@ function unsafe_read!(source::SndFileSource, buf::Array, frameoffset, framecount
     total = min(framecount, nframes(source) - source.pos + 1)
     nread = 0
     readbuf = source.readbuf
-    transbuf = source.transbuf
     while nread < total
         n = min(size(readbuf, 2), total - nread)
         nr = sf_readf(source.filePtr, readbuf, n)
         # the data comes in interleaved, so we need to transpose
-        # TODO: this is silly. we should be transposing and copying in one step
-        transpose!(transbuf, readbuf)
-        for ch in 1:nchannels(buf)
-            for i in 1:nr
-                buf[nread+i+frameoffset, ch] = transbuf[i, ch]
-            end
-        end
+        transpose!(view(buf, (1:nr)+frameoffset+nread, :), view(readbuf, :, 1:nr))
         source.pos += nr
         nread += nr
         nr == n || break
@@ -271,17 +260,10 @@ end
 function unsafe_write(sink::SndFileSink, buf::Array, frameoffset, framecount)
     nwritten = 0
     writebuf = sink.writebuf
-    transbuf = sink.transbuf
     while nwritten < framecount
         n = min(size(writebuf, 2), framecount - nwritten)
-        # TODO: this is silly. we should be transposing and copying in one step
-        for ch in 1:nchannels(buf)
-            for i in 1:n
-                transbuf[i, ch] = buf[nwritten+i+frameoffset, ch]
-            end
-        end
         # the data needs to be interleaved, so we need to transpose
-        transpose!(writebuf, transbuf)
+        transpose!(view(writebuf, :, 1:n), view(buf, (1:n)+frameoffset+nwritten, :))
         nw = sf_writef(sink.filePtr, writebuf, n)
         sink.nframes += nw
         nwritten += nw
