@@ -93,13 +93,20 @@ type SF_INFO
     seekable::Int32
 end
 
-type SndFileSink <: SampleSink
+type SndFileSink{T} <: SampleSink
     path::UTF8String
     filePtr::Ptr{Void}
     sfinfo::SF_INFO
     nframes::Int64
+    writebuf::Array{T, 2}
+    transbuf::Array{T, 2}
+end
 
-    SndFileSink(path, filePtr, sfinfo) = new(path, filePtr, sfinfo, 0)
+function SndFileSink(path, filePtr, sfinfo, bufsize=4096)
+    T = fmt_to_type(sfinfo.format)
+    writebuf = Array(T, sfinfo.channels, bufsize)
+    transbuf = Array(T, bufsize, sfinfo.channels)
+    SndFileSink(path, filePtr, sfinfo, 0, writebuf, transbuf)
 end
 
 nchannels(sink::SndFileSink) = Int(sink.sfinfo.channels)
@@ -176,8 +183,8 @@ function Base.close(s::SndFileSource)
     end
 end
 
-function unsafe_read!(source::SndFileSource, buf::SampleBuf)
-    total = min(nframes(buf), nframes(source) - source.pos + 1)
+function unsafe_read!(source::SndFileSource, buf::Array, frameoffset, framecount)
+    total = min(framecount, nframes(source) - source.pos + 1)
     nread = 0
     readbuf = source.readbuf
     transbuf = source.transbuf
@@ -185,10 +192,11 @@ function unsafe_read!(source::SndFileSource, buf::SampleBuf)
         n = min(size(readbuf, 2), total - nread)
         nr = sf_readf(source.filePtr, readbuf, n)
         # the data comes in interleaved, so we need to transpose
+        # TODO: this is silly. we should be transposing and copying in one step
         transpose!(transbuf, readbuf)
         for ch in 1:nchannels(buf)
             for i in 1:nr
-                buf[nread+(i), ch] = transbuf[i, ch]
+                buf[nread+i+frameoffset, ch] = transbuf[i, ch]
             end
         end
         source.pos += nr
@@ -260,11 +268,27 @@ function savestream{T}(path::File{T}, nchannels, samplerate, elemtype)
 end
 
 # returns the number of samples written
-function unsafe_write(str::SndFileSink, buf::SampleBuf)
-    # the data needs to be interleaved, so we transpose
-    arr = buf.data'
-    str.nframes += nframes(buf)
-    sf_writef(str.filePtr, arr, nframes(buf))
+function unsafe_write(sink::SndFileSink, buf::Array, frameoffset, framecount)
+    nwritten = 0
+    writebuf = sink.writebuf
+    transbuf = sink.transbuf
+    while nwritten < framecount
+        n = min(size(writebuf, 2), framecount - nwritten)
+        # TODO: this is silly. we should be transposing and copying in one step
+        for ch in 1:nchannels(buf)
+            for i in 1:n
+                transbuf[i, ch] = buf[nwritten+i+frameoffset, ch]
+            end
+        end
+        # the data needs to be interleaved, so we need to transpose
+        transpose!(writebuf, transbuf)
+        nw = sf_writef(sink.filePtr, writebuf, n)
+        sink.nframes += nw
+        nwritten += nw
+        nw == n || break
+    end
+
+    nwritten
 end
 
 function Base.close(str::SndFileSink)

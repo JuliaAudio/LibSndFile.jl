@@ -195,7 +195,7 @@ try
             io = IOBuffer()
             show(io, stream)
             @test takebuf_string(io) == """
-            LibSndFile.SndFileSink
+            LibSndFile.SndFileSink{Float32}
               path: "$fname"
               channels: 2
               samplerate: 44100 s⁻¹
@@ -204,7 +204,7 @@ try
             write(stream, testbuf)
             show(io, stream)
             @test takebuf_string(io) == """
-            LibSndFile.SndFileSink
+            LibSndFile.SndFileSink{Float32}
               path: "$fname"
               channels: 2
               samplerate: 44100 s⁻¹
