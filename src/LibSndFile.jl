@@ -10,17 +10,12 @@ using SampledSignals
 import SampledSignals: nchannels, nframes, samplerate, unsafe_read!, unsafe_write
 using FileIO
 import FileIO: load, save
-using FixedPointNumbers
-using SIUnits
 
 # TODO: move these into FileIO.jl
 export loadstream, savestream
 
 # Re-export from FileIO
 export load, save
-
-typealias PCM16Sample Fixed{Int16, 15}
-typealias PCM32Sample Fixed{Int32, 31}
 
 function __init__()
     # this needs to be run when the module is loaded at run-time, even if
@@ -108,7 +103,7 @@ function SndFileSink(path, filePtr, sfinfo, bufsize=4096)
 end
 
 nchannels(sink::SndFileSink) = Int(sink.sfinfo.channels)
-samplerate(sink::SndFileSink) = quantity(Int, Hz)(sink.sfinfo.samplerate)
+samplerate(sink::SndFileSink) = sink.sfinfo.samplerate
 nframes(sink::SndFileSink) = sink.nframes
 Base.eltype(sink::SndFileSink) = fmt_to_type(sink.sfinfo.format)
 
@@ -128,7 +123,7 @@ function SndFileSource(path, filePtr, sfinfo, bufsize=4096)
 end
 
 nchannels(source::SndFileSource) = Int(source.sfinfo.channels)
-samplerate(source::SndFileSource) = quantity(Int, Hz)(source.sfinfo.samplerate)
+samplerate(source::SndFileSource) = source.sfinfo.samplerate
 nframes(source::SndFileSource) = source.sfinfo.frames
 Base.eltype{T}(source::SndFileSource{T}) = T
 
@@ -136,7 +131,7 @@ function Base.show(io::IO, s::Union{SndFileSource, SndFileSink})
     println(io, typeof(s))
     println(io, "  path: \"$(s.path)\"")
     println(io, "  channels: ", nchannels(s))
-    println(io, "  samplerate: ", samplerate(s))
+    println(io, "  samplerate: ", samplerate(s), "Hz")
     # SndFileSinks don't have a position and we're always at the end
     pos = isa(s, SndFileSource) ? s.pos-1 : nframes(s)
     postime = float((pos)/samplerate(s))
@@ -221,11 +216,6 @@ function savestream(f::Function, args...)
     finally
         close(stream)
     end
-end
-
-# if the samplerate is given in Hz, strip it off
-function savestream{SRT}(path::File, nchannels, samplerate::quantity(SRT, Hz), elemtype)
-    savestream(path, nchannels, samplerate/Hz, elemtype)
 end
 
 function savestream{T}(path::File{T}, nchannels, samplerate, elemtype)

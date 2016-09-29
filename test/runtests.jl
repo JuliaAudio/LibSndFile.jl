@@ -9,7 +9,6 @@ end
 using LibSndFile
 using SampledSignals
 using FileIO
-using FixedPointNumbers
 
 include("testhelpers.jl")
 
@@ -57,7 +56,7 @@ try
 
         @testset "Reading different sample types" begin
             buf = load(reference_wav)
-            @test eltype(buf) == Fixed{Int16, 15}
+            @test eltype(buf) == PCM16Sample
 
             buf_float = load(reference_wav_float)
             @test eltype(buf_float) == Float32
@@ -68,7 +67,7 @@ try
             @test mse(buf_double, reference_buf) < 1e-10
 
             buf_pcm24 = load(reference_wav_pcm24)
-            @test eltype(buf_pcm24) == Fixed{Int32, 31}
+            @test eltype(buf_pcm24) == PCM32Sample
             @test mse(buf_pcm24, reference_buf) < 1e-10
         end
 
@@ -131,8 +130,7 @@ try
 
         @testset "FLAC file writing" begin
             fname = string(tempname(), ".flac")
-            # TODO: this conversion fails sometimes because of FixedPointNumbers.jl#37
-            arr = convert(Array{Fixed{Int16, 15}}, rand(100, 2)-0.5)
+            arr = map(PCM16Sample, rand(100, 2)-0.5)
             testbuf = SampleBuf(arr, srate)
             save(fname, testbuf)
             buf = load(fname)
@@ -143,9 +141,9 @@ try
             @test mse(buf, testbuf) < 1e-10
         end
 
-        @testset "Writing $T data" for T in [Fixed{Int16, 15}, Fixed{Int32, 31}, Float32, Float64]
+        @testset "Writing $T data" for T in [PCM16Sample, PCM32Sample, Float32, Float64]
             fname = string(tempname(), ".wav")
-            arr = convert(Array{T}, rand(100, 2)-0.5)
+            arr = map(T, rand(100, 2)-0.5)
             testbuf = SampleBuf(arr, srate)
             save(fname, testbuf)
             buf = load(fname)
@@ -195,7 +193,7 @@ try
             LibSndFile.SndFileSink{Float32}
               path: "$fname"
               channels: 2
-              samplerate: 44100 s⁻¹
+              samplerate: 44100Hz
               position: 0 of 0 frames
                         0.00 of 0.00 seconds"""
             write(stream, testbuf)
@@ -204,7 +202,7 @@ try
             LibSndFile.SndFileSink{Float32}
               path: "$fname"
               channels: 2
-              samplerate: 44100 s⁻¹
+              samplerate: 44100Hz
               position: 10000 of 10000 frames
                         0.23 of 0.23 seconds"""
         end
@@ -221,7 +219,7 @@ try
             LibSndFile.SndFileSource{Float32}
               path: "$fname"
               channels: 2
-              samplerate: 44100 s⁻¹
+              samplerate: 44100Hz
               position: 0 of 10000 frames
                         0.00 of 0.23 seconds"""
             read(stream, 5000)
@@ -230,7 +228,7 @@ try
             LibSndFile.SndFileSource{Float32}
               path: "$fname"
               channels: 2
-              samplerate: 44100 s⁻¹
+              samplerate: 44100Hz
               position: 5000 of 10000 frames
                         0.11 of 0.23 seconds"""
         end
