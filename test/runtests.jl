@@ -23,7 +23,7 @@ end
 
 try
     @testset "LibSndFile Tests" begin
-        srate = 44100Hz
+        srate = 44100
         # reference file generated with Audacity. Careful to turn dithering off
         # on export for deterministic output!
         reference_wav = Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp.wav")
@@ -32,7 +32,7 @@ try
         reference_wav_pcm24 = Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp_pcm24.wav")
         reference_ogg = Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp.ogg")
         reference_flac = Pkg.dir("LibSndFile", "test", "440left_880right_0.5amp.flac")
-        reference_buf = gen_reference(srate/Hz)
+        reference_buf = gen_reference(srate)
 
         @testset "Read errors" begin
             @test_throws ErrorException load("doesnotexist.wav")
@@ -51,7 +51,7 @@ try
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
-            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/(srate/Hz))
+            @test isapprox(domain(buf), collect(0:99)/(srate))
             @test mse(buf, reference_buf) < 1e-10
         end
 
@@ -77,7 +77,7 @@ try
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
-            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/(srate/Hz))
+            @test isapprox(domain(buf), collect(0:99)/srate)
             @test mse(buf, reference_buf) < 1e-10
         end
 
@@ -86,7 +86,7 @@ try
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
-            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/(srate/Hz))
+            @test isapprox(domain(buf), collect(0:99)/srate)
             # lossy compression, so relax the accuracy a bit
             @test mse(buf, reference_buf) < 1e-5
         end
@@ -112,8 +112,7 @@ try
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
-            # strip units because isapprox doesn't support them...
-            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/(srate/Hz))
+            @test isapprox(domain(buf), collect(0:99)/srate)
             @test mse(buf, testbuf) < 1e-10
         end
 
@@ -125,8 +124,7 @@ try
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
-            # strip units because isapprox doesn't support them...
-            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/(srate/Hz))
+            @test isapprox(domain(buf), collect(0:99)/srate)
             # noise doesn't compress very well...
             @test mse(buf, testbuf) < 0.05
         end
@@ -141,8 +139,7 @@ try
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
-            # strip units because isapprox doesn't support them...
-            @test isapprox(Float64[x/s for x in domain(buf)], collect(0:99)/(srate/Hz))
+            @test isapprox(domain(buf), collect(0:99)/srate)
             @test mse(buf, testbuf) < 1e-10
         end
 
