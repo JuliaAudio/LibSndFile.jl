@@ -195,7 +195,10 @@ function Base.readall(str::SndFileSource)
     read(str, nframes(str) - str.pos + 1)
 end
 
-function load(path::File)
+load(path::File{format"WAV"}) = load_helper(path)
+load(path::File{format"FLAC"}) = load_helper(path)
+load(path::File{format"OGG"}) = load_helper(path)
+function load_helper(path::File)  
     str = loadstream(path)
     buf = try
         readall(str)
@@ -270,7 +273,10 @@ function Base.close(str::SndFileSink)
     end
 end
 
-function save{T}(path::File{T}, buf::SampleBuf)
+save(path::File{format"WAV"},buf::SampleBuf) = save_helper(path,buf)
+save(path::File{format"FLAC"},buf::SampleBuf) = save_helper(path,buf)
+save(path::File{format"OGG"},buf::SampleBuf) = save_helper(path,buf)
+function save_helper(path::File, buf::SampleBuf)
     sfinfo = SF_INFO(0, 0, 0, 0, 0, 0)
     stream = savestream(path, nchannels(buf), samplerate(buf), eltype(buf))
 
