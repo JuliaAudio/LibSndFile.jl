@@ -29,7 +29,12 @@ end
 
 
 include("formats.jl")
-include(Pkg.dir("LibSndFile", "deps", "deps.jl"))
+depsjl = joinpath(dirname(@__FILE__), "..", "deps", "deps.jl")
+if isfile(depsjl)
+    include(depsjl)
+else
+    error("LibSndFile not properly installed. Please run Pkg.build(\"LibSndFile\")")
+end
 
 # const SF_SEEK_SET = 0
 # const SF_SEEK_CUR = 1
