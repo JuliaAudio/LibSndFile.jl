@@ -10,12 +10,12 @@ libsndfile = library_dependency("libsndfile", aliases=["libsndfile-1"])
 provides(AptGet, "libsndfile1-dev", libsndfile)
 provides(Pacman, "libsndfile", libsndfile)
 
-@osx_only begin
+@static if is_apple()
     using Homebrew
     provides(Homebrew.HB, "libsndfile", libsndfile)
 end
 
-@windows_only begin
+@static if is_windows()
     using WinRPM
     provides(WinRPM.RPM, "libsndfile1", libsndfile, os = :Windows)
 end

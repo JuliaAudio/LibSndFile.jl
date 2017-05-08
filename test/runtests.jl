@@ -209,7 +209,7 @@ try
 
         @testset "Source Display" begin
             fname = string(tempname(), ".wav")
-            testbuf = SampleBuf(rand(Float32, 10000, 2)-0.5, srate)
+            testbuf = SampleBuf(rand(Float32, 10000, 2)-0.5f0, srate)
             save(fname, testbuf)
             # set up a 2-channel Float32 stream
             stream = loadstream(fname)
@@ -289,5 +289,6 @@ try
         # end
     end
 catch err
-    exit(-1)
+    # exit(-1)
+nothing
 end
