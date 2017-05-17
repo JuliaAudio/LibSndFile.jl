@@ -17,7 +17,7 @@ function gen_reference(srate)
 end
 
 try
-    @testset DottedTestSet "LibSndFile Tests" begin
+    @testset ExtendedTestSet "LibSndFile Tests" begin
         srate = 44100
         # reference file generated with Audacity. Careful to turn dithering off
         # on export for deterministic output!
