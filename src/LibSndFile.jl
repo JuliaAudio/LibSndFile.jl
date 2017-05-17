@@ -196,7 +196,7 @@ function unsafe_read!(source::SndFileSource, buf::Array, frameoffset, framecount
     nread
 end
 
-function Base.readall(str::SndFileSource)
+function readall(str::SndFileSource)
     read(str, nframes(str) - str.pos + 1)
 end
 
