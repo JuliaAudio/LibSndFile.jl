@@ -1,6 +1,6 @@
 julia 0.6-
 BinDeps
 FileIO 0.1.1
-SampledSignals 0.3.0
+SampledSignals 1.0.0
 @osx Homebrew
 @windows WinRPM
