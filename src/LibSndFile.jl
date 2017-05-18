@@ -103,7 +103,7 @@ end
 
 function SndFileSink(path, filePtr, sfinfo, bufsize=4096)
     T = fmt_to_type(sfinfo.format)
-    writebuf = Array(T, sfinfo.channels, bufsize)
+    writebuf = Array{T}(sfinfo.channels, bufsize)
     SndFileSink(path, filePtr, sfinfo, 0, writebuf)
 end
 
@@ -122,7 +122,7 @@ end
 
 function SndFileSource(path, filePtr, sfinfo, bufsize=4096)
     T = fmt_to_type(sfinfo.format)
-    readbuf = Array(T, sfinfo.channels, bufsize)
+    readbuf = Array{T}(sfinfo.channels, bufsize)
 
     SndFileSource(path, filePtr, sfinfo, 1, readbuf)
 end
@@ -196,17 +196,13 @@ function unsafe_read!(source::SndFileSource, buf::Array, frameoffset, framecount
     nread
 end
 
-function Base.readall(str::SndFileSource)
-    read(str, nframes(str) - str.pos + 1)
-end
-
 load(path::File{format"WAV"}) = load_helper(path)
 load(path::File{format"FLAC"}) = load_helper(path)
 load(path::File{format"OGG"}) = load_helper(path)
-function load_helper(path::File)  
+function load_helper(path::File)
     str = loadstream(path)
     buf = try
-        readall(str)
+        read(str)
     finally
         close(str)
     end

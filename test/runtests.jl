@@ -1,14 +1,10 @@
 #!/usr/bin/env julia
 
-if VERSION >= v"0.5.0-"
-    using Base.Test
-else
-    using BaseTestNext
-end
+using Base.Test
+using TestSetExtensions
 
 using LibSndFile
 using SampledSignals
-using FileIO
 
 include("testhelpers.jl")
 
@@ -17,11 +13,11 @@ function gen_reference(srate)
     t = collect(0:99) / srate
     phase = [2pi*440t 2pi*880t]
 
-    0.5sin(phase)
+    0.5sin.(phase)
 end
 
 try
-    @testset "LibSndFile Tests" begin
+    @testset ExtendedTestSet "LibSndFile Tests" begin
         srate = 44100
         # reference file generated with Audacity. Careful to turn dithering off
         # on export for deterministic output!
@@ -101,13 +97,31 @@ try
                 @test mse(read(str, 50), reference_buf[1:50, :]) < 1e-10
                 @test mse(read(str, 50), reference_buf[51:100, :]) < 1e-10
             end
+            # now try reading all at once
+            loadstream(reference_wav) do str
+                @test mse(read(str), reference_buf) < 1e-10
+            end
         end
 
-        @testset "WAV file writing" begin
+        @testset "WAV file writing (float64)" begin
             fname = string(tempname(), ".wav")
             testbuf = SampleBuf(rand(100, 2)-0.5, srate)
             save(fname, testbuf)
             buf = load(fname)
+            @test eltype(buf) == eltype(testbuf)
+            @test samplerate(buf) == srate
+            @test nchannels(buf) == 2
+            @test nframes(buf) == 100
+            @test isapprox(domain(buf), collect(0:99)/srate)
+            @test mse(buf, testbuf) < 1e-10
+        end
+
+        @testset "WAV file writing (float32)" begin
+            fname = string(tempname(), ".wav")
+            testbuf = SampleBuf(rand(Float32, 100, 2)-0.5f0, srate)
+            save(fname, testbuf)
+            buf = load(fname)
+            @test eltype(buf) == eltype(testbuf)
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
@@ -184,12 +198,12 @@ try
 
         @testset "Sink Display" begin
             fname = string(tempname(), ".wav")
-            testbuf = SampleBuf(rand(Float32, 10000, 2)-0.5, srate)
+            testbuf = SampleBuf(rand(Float32, 10000, 2)-0.5f0, srate)
             # set up a 2-channel Float32 stream
             stream = savestream(fname, 2, srate, Float32)
             io = IOBuffer()
             show(io, stream)
-            @test takebuf_string(io) == """
+            @test String(take!(io)) == """
             LibSndFile.SndFileSink{Float32}
               path: "$fname"
               channels: 2
@@ -198,7 +212,7 @@ try
                         0.00 of 0.00 seconds"""
             write(stream, testbuf)
             show(io, stream)
-            @test takebuf_string(io) == """
+            @test String(take!(io)) == """
             LibSndFile.SndFileSink{Float32}
               path: "$fname"
               channels: 2
@@ -209,13 +223,13 @@ try
 
         @testset "Source Display" begin
             fname = string(tempname(), ".wav")
-            testbuf = SampleBuf(rand(Float32, 10000, 2)-0.5, srate)
+            testbuf = SampleBuf(rand(Float32, 10000, 2)-0.5f0, srate)
             save(fname, testbuf)
             # set up a 2-channel Float32 stream
             stream = loadstream(fname)
             io = IOBuffer()
             show(io, stream)
-            @test takebuf_string(io) == """
+            @test String(take!(io)) == """
             LibSndFile.SndFileSource{Float32}
               path: "$fname"
               channels: 2
@@ -224,7 +238,7 @@ try
                         0.00 of 0.23 seconds"""
             read(stream, 5000)
             show(io, stream)
-            @test takebuf_string(io) == """
+            @test String(take!(io)) == """
             LibSndFile.SndFileSource{Float32}
               path: "$fname"
               channels: 2
