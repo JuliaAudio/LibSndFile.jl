@@ -5,6 +5,9 @@ os:
   - osx
 julia:
   - 0.6
+branches:
+    only:
+        master
 notifications:
   email: false
 script:
