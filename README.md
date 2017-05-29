@@ -1,7 +1,6 @@
 LibSndFile.jl
 =============
-
-[![Build Status](https://travis-ci.org/JuliaAudio/LibSndFile.jl.svg?branch=master)] (https://travis-ci.org/JuliaAudio/LibSndFile.jl)
+[![Build Status](https://travis-ci.org/JuliaAudio/LibSndFile.jl.svg?branch=master)](https://travis-ci.org/JuliaAudio/LibSndFile.jl)
 [![Build status](https://ci.appveyor.com/api/projects/status/1wdo413vf375i1vr/branch/master?svg=true)](https://ci.appveyor.com/project/ssfrr/libsndfile-jl/branch/master)
 [![codecov.io](https://codecov.io/github/JuliaAudio/LibSndFile.jl/coverage.svg?branch=master)](https://codecov.io/github/JuliaAudio/LibSndFile.jl?branch=master)
 

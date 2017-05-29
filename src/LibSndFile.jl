@@ -2,10 +2,6 @@ __precompile__()
 
 module LibSndFile
 
-using Compat
-# we should be able to remove UTF8String and rename to String when we drop 0.4 support
-import Compat: UTF8String, view
-
 using SampledSignals
 import SampledSignals: nchannels, nframes, samplerate, unsafe_read!, unsafe_write
 using FileIO
@@ -56,10 +52,10 @@ subformatcode(::Type{Float64}) = SF_FORMAT_DOUBLE
 # WAV is a subtype of RIFF, as is AVI
 function detectwav(io)
     seekstart(io)
-    magic = UTF8String(read(io, UInt8, 4))
+    magic = String(read(io, UInt8, 4))
     magic == "RIFF" || return false
     seek(io, 8)
-    submagic = UTF8String(read(io, UInt8, 4))
+    submagic = String(read(io, UInt8, 4))
 
     submagic == "WAVE"
 end
@@ -94,7 +90,7 @@ type SF_INFO
 end
 
 type SndFileSink{T} <: SampleSink
-    path::UTF8String
+    path::String
     filePtr::Ptr{Void}
     sfinfo::SF_INFO
     nframes::Int64
@@ -103,7 +99,7 @@ end
 
 function SndFileSink(path, filePtr, sfinfo, bufsize=4096)
     T = fmt_to_type(sfinfo.format)
-    writebuf = Array(T, sfinfo.channels, bufsize)
+    writebuf = Array{T}(sfinfo.channels, bufsize)
     SndFileSink(path, filePtr, sfinfo, 0, writebuf)
 end
 
@@ -113,7 +109,7 @@ nframes(sink::SndFileSink) = sink.nframes
 Base.eltype(sink::SndFileSink) = fmt_to_type(sink.sfinfo.format)
 
 type SndFileSource{T} <: SampleSource
-    path::UTF8String
+    path::String
     filePtr::Ptr{Void}
     sfinfo::SF_INFO
     pos::Int64
@@ -122,7 +118,7 @@ end
 
 function SndFileSource(path, filePtr, sfinfo, bufsize=4096)
     T = fmt_to_type(sfinfo.format)
-    readbuf = Array(T, sfinfo.channels, bufsize)
+    readbuf = Array{T}(sfinfo.channels, bufsize)
 
     SndFileSource(path, filePtr, sfinfo, 1, readbuf)
 end
@@ -196,17 +192,13 @@ function unsafe_read!(source::SndFileSource, buf::Array, frameoffset, framecount
     nread
 end
 
-function Base.readall(str::SndFileSource)
-    read(str, nframes(str) - str.pos + 1)
-end
-
 load(path::File{format"WAV"}) = load_helper(path)
 load(path::File{format"FLAC"}) = load_helper(path)
 load(path::File{format"OGG"}) = load_helper(path)
-function load_helper(path::File)  
+function load_helper(path::File)
     str = loadstream(path)
     buf = try
-        readall(str)
+        read(str)
     finally
         close(str)
     end
