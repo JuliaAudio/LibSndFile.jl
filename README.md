@@ -56,6 +56,43 @@ data = loadstream("data/never_gonna_give_you_up.ogg") do s
 end
 ```
 
+## Supported Formats
+
+See the [libsndfile](http://www.mega-nerd.com/libsndfile/) homepage for details, but in summary this library supports reading and writing:
+
+* Microsoft WAV
+* Ogg/Vorbis
+* FLAC
+* SGI / Apple AIFF / AIFC
+* RAW
+* Sound Designer II SD2
+* Sun / DEC / NeXT AU / SND
+* Paris Audio File (PAF)
+* Commodore Amiga IFF / SVX
+* Sphere Nist WAV
+* IRCAM SF
+* Creative VOC
+* Soundforge W64
+* GNU Octave 2.0 MAT4
+* GNU Octave 2.1 MAT5
+* Portable Voice Format PVF
+* Fasttracker 2 XI
+* HMM Tool Kit HTK
+* Apple CAF
+
+Note not all file formats support all samplerates and bit depths.
+
+## Related Packages
+
+* [SampledSignals.jl](https://github.com/JuliaAudio/SampledSignals.jl) provides the basic stream and buffer types used by this package.
+* [MP3.jl](https://github.com/JuliaAudio/MP3.jl) supports reading and writing MP3 files
+* [WAV.jl](https://github.com/dancasimiro/WAV.jl) is a pure-julia package supporting the WAV file format.
+* [Opus.jl](https://github.com/staticfloat/Opus.jl) wraps `libopus` and allows you to read and write Opus audio.
+* [PortAudio.jl](https://github.com/JuliaAudio/PortAudio.jl) can be used to interface with your sound card to record and play audio.
+
+
 ## A Note on Licensing
 
 libsndfile is [licensed](http://www.mega-nerd.com/libsndfile/#Licensing) under the LGPL, which is very permissive providing that libsndfile is dynamically linked. LibSndFile.jl is licensed under the MIT license, allowing you to statically compile the wrapper into your Julia application. Remember that you must still abide by the terms of the libsndfile license when using this wrapper, in terms of whether libsndfile is statically or dynamically linked.
+
+Note that this is to the best of my understanding, but I am not an attorney and this should not be considered legal advice.
