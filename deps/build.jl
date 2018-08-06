@@ -1,8 +1,9 @@
 using BinDeps
+using Compat.Sys: BINDIR
 
 @BinDeps.setup
 
-ENV["JULIA_ROOT"] = abspath(JULIA_HOME, "../../")
+ENV["JULIA_ROOT"] = abspath(BINDIR, "../../")
 
 # include alias for WinRPM library
 libsndfile = library_dependency("libsndfile", aliases=["libsndfile-1"])
