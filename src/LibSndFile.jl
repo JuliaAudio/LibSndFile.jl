@@ -6,20 +6,12 @@ module LibSndFile
 using SampledSignals
 import SampledSignals: nchannels, nframes, samplerate, unsafe_read!, unsafe_write
 using FileIO
-import FileIO: load, save
 if VERSION >= v"0.7-"
     using Printf: @printf
     using LinearAlgebra: transpose!
 else
     using Compat: Cvoid
 end
-
-
-# TODO: move these into FileIO.jl
-export loadstream, savestream
-
-# Re-export from FileIO
-export load, save
 
 function __init__()
     # this needs to be run when the module is loaded at run-time, even if
@@ -31,31 +23,13 @@ function __init__()
     add_format(format"OGG", "OggS", [".ogg", ".oga"], [:LibSndFile])
 end
 
-
-include("formats.jl")
-depsjl = joinpath(dirname(@__FILE__), "..", "deps", "deps.jl")
+include("libsndfile_h.jl")
+depsjl = joinpath(@__DIR__, "..", "deps", "deps.jl")
 if isfile(depsjl)
     include(depsjl)
 else
     error("LibSndFile not properly installed. Please run Pkg.build(\"LibSndFile\")")
 end
-
-# const SF_SEEK_SET = 0
-# const SF_SEEK_CUR = 1
-# const SF_SEEK_END = 2
-
-const SFM_READ = Int32(0x10)
-const SFM_WRITE = Int32(0x20)
-
-formatcode(::Type{format"WAV"}) = SF_FORMAT_WAV
-formatcode(::Type{format"FLAC"}) = SF_FORMAT_FLAC
-formatcode(::Type{format"OGG"}) = SF_FORMAT_OGG
-
-subformatcode(::Type{PCM16Sample}) = SF_FORMAT_PCM_16
-subformatcode(::Type{PCM32Sample}) = SF_FORMAT_PCM_32
-subformatcode(::Type{Float32}) = SF_FORMAT_FLOAT
-subformatcode(::Type{Float64}) = SF_FORMAT_DOUBLE
-
 
 # WAV is a subtype of RIFF, as is AVI
 function detectwav(io)
@@ -66,35 +40,6 @@ function detectwav(io)
     submagic = String(read!(io, Array{UInt8}(undef, 4)))
 
     submagic == "WAVE"
-end
-
-"""Take a LibSndFile format code and return a suitable sample type"""
-function fmt_to_type(fmt)
-    mapping = Dict{UInt32, Type}(
-        SF_FORMAT_PCM_S8 => PCM16Sample,
-        SF_FORMAT_PCM_U8 => PCM16Sample,
-        SF_FORMAT_PCM_16 => PCM16Sample,
-        SF_FORMAT_PCM_24 => PCM32Sample,
-        SF_FORMAT_PCM_32 => PCM32Sample,
-        SF_FORMAT_FLOAT => Float32,
-        SF_FORMAT_DOUBLE => Float64,
-        SF_FORMAT_VORBIS => Float32,
-    )
-
-    masked = fmt & SF_FORMAT_SUBMASK
-    masked in keys(mapping) || error("Format code $masked not recognized by LibSndFile.jl")
-
-    mapping[masked]
-end
-
-
-mutable struct SF_INFO
-    frames::Int64
-    samplerate::Int32
-    channels::Int32
-    format::Int32
-    sections::Int32
-    seekable::Int32
 end
 
 mutable struct SndFileSink{T} <: SampleSink
@@ -149,11 +94,11 @@ function Base.show(io::IO, s::Union{SndFileSource, SndFileSink})
     @printf(io, "            %0.2f of %0.2f seconds", postime, endtime)
 end
 
-loadstream(path::AbstractString, args...; kwargs...) =
-    loadstream(query(path), args...; kwargs...)
+loadstreaming(path::AbstractString, args...; kwargs...) =
+    loadstreaming(query(path), args...; kwargs...)
 
-function loadstream(f::Function, args...)
-    str = loadstream(args...)
+function loadstreaming(f::Function, args...)
+    str = loadstreaming(args...)
     try
         f(str)
     finally
@@ -161,26 +106,17 @@ function loadstream(f::Function, args...)
     end
 end
 
-function loadstream(path::File)
+function loadstreaming(path::File)
     sfinfo = SF_INFO(0, 0, 0, 0, 0, 0)
+    fname = filename(path)
+    # sf_open fills in sfinfo
+    filePtr = sf_open(fname, SFM_READ, sfinfo)
 
-    filePtr = ccall((:sf_open, libsndfile), Ptr{Cvoid},
-                    (Ptr{UInt8}, Int32, Ref{SF_INFO}),
-                    filename(path), SFM_READ, sfinfo)
-
-    if filePtr == C_NULL
-        errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Cvoid},), filePtr)
-        error("LibSndFile.jl error while loading $path: ", unsafe_string(errmsg))
-    end
-
-    SndFileSource(filename(path), filePtr, sfinfo)
+    SndFileSource(fname, filePtr, sfinfo)
 end
 
 function Base.close(s::SndFileSource)
-    err = ccall((:sf_close, libsndfile), Int32, (Ptr{Cvoid},), s.filePtr)
-    if err != 0
-        error("LibSndFile.jl error: Failed to close file")
-    end
+    sf_close(s.filePtr)
 end
 
 function unsafe_read!(source::SndFileSource, buf::Array, frameoffset, framecount)
@@ -205,7 +141,7 @@ load(path::File{format"WAV"}) = load_helper(path)
 load(path::File{format"FLAC"}) = load_helper(path)
 load(path::File{format"OGG"}) = load_helper(path)
 function load_helper(path::File)
-    str = loadstream(path)
+    str = loadstreaming(path)
     buf = try
         read(str)
     finally
@@ -215,11 +151,11 @@ function load_helper(path::File)
     buf
 end
 
-savestream(path::AbstractString, args...; kwargs...) =
-    savestream(query(path), args...; kwargs...)
+savestreaming(path::AbstractString, args...; kwargs...) =
+    savestreaming(query(path), args...; kwargs...)
 
-function savestream(f::Function, args...)
-    stream = savestream(args...)
+function savestreaming(f::Function, args...)
+    stream = savestreaming(args...)
     try
         f(stream)
     finally
@@ -227,7 +163,7 @@ function savestream(f::Function, args...)
     end
 end
 
-function savestream(path::File{T}, nchannels, samplerate, elemtype) where T
+function savestreaming(path::File{T}, nchannels, samplerate, elemtype) where T
     sfinfo = SF_INFO(0, 0, 0, 0, 0, 0)
 
     sfinfo.samplerate = samplerate
@@ -285,7 +221,7 @@ save(path::File{format"FLAC"},buf::SampleBuf) = save_helper(path,buf)
 save(path::File{format"OGG"},buf::SampleBuf) = save_helper(path,buf)
 function save_helper(path::File, buf::SampleBuf)
     sfinfo = SF_INFO(0, 0, 0, 0, 0, 0)
-    stream = savestream(path, nchannels(buf), samplerate(buf), eltype(buf))
+    stream = savestreaming(path, nchannels(buf), samplerate(buf), eltype(buf))
 
     try
         frameswritten = write(stream, buf)

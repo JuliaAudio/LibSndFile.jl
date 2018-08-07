@@ -7,10 +7,33 @@ else
     using Base.Test
 end
 
-using LibSndFile
+#using FileIO: load, save, loadstreaming, savestreaming
+using FileIO: File, Stream, @format_str
+# using LibSndFile: load, save, loadstreaming, savestreaming
+import LibSndFile
 using SampledSignals
 
 include("testhelpers.jl")
+
+# define some loaders and savers that bypass FileIO's detection machinery, of
+# the form:
+# load_wav(io::String, args...) = LibSndFile.load(File(format"WAV", io), args...)
+# load_wav(io::IO, args...) = LibSndFile.load(Stream(format"WAV", io), args...)
+# also create do-compatible methods of the form:
+# loadstreaming_wav(dofunc::Function, io::IO, args...) = LibSndFile.load(dofunc, Stream(format"WAV", io), args...)
+
+for f in (:load, :save, :loadstreaming, :savestreaming)
+    for io in ((String, File), (IO, Stream))
+        for fmt in (("_wav", format"WAV"), ("_ogg", format"OGG"), ("_flac", format"FLAC"))
+            @eval $(Symbol(f, fmt[1]))(io::$(io[1]), args...) =
+                LibSndFile.$f($(io[2])($(fmt[2]), io), args...)
+            if f in (:loadstreaming, :savestreaming)
+                @eval $(Symbol(f, fmt[1]))(dofunc::Function, io::$(io[1]), args...) =
+                    LibSndFile.$f(dofunc, $(io[2])($(fmt[2]), io), args...)
+            end
+        end
+    end
+end
 
 """Generates a 100-sample 2-channel signal"""
 function gen_reference(srate)
@@ -34,7 +57,7 @@ try
         reference_buf = gen_reference(srate)
 
         @testset "Read errors" begin
-            @test_throws ErrorException load("doesnotexist.wav")
+            @test_throws ErrorException load_wav("doesnotexist.wav")
         end
 
         @testset "WAV file detection" begin
@@ -46,7 +69,7 @@ try
             end
         end
         @testset "WAV file reading" begin
-            buf = load(reference_wav)
+            buf = load_wav(reference_wav)
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
@@ -55,24 +78,24 @@ try
         end
 
         @testset "Reading different sample types" begin
-            buf = load(reference_wav)
+            buf = load_wav(reference_wav)
             @test eltype(buf) == PCM16Sample
 
-            buf_float = load(reference_wav_float)
+            buf_float = load_wav(reference_wav_float)
             @test eltype(buf_float) == Float32
             @test mse(buf_float, reference_buf) < 1e-10
 
-            buf_double = load(reference_wav_double)
+            buf_double = load_wav(reference_wav_double)
             @test eltype(buf_double) == Float64
             @test mse(buf_double, reference_buf) < 1e-10
 
-            buf_pcm24 = load(reference_wav_pcm24)
+            buf_pcm24 = load_wav(reference_wav_pcm24)
             @test eltype(buf_pcm24) == PCM32Sample
             @test mse(buf_pcm24, reference_buf) < 1e-10
         end
 
         @testset "FLAC file reading" begin
-            buf = load(reference_flac)
+            buf = load_flac(reference_flac)
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
@@ -81,7 +104,7 @@ try
         end
 
         @testset "OGG file reading" begin
-            buf = load(reference_ogg)
+            buf = load_ogg(reference_ogg)
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
@@ -91,27 +114,44 @@ try
         end
 
         @testset "Streaming reading" begin
-            str = loadstream(reference_wav)
+            str = loadstreaming_wav(reference_wav)
             @test nframes(str) == 100
             @test mse(read(str, 50), reference_buf[1:50, :]) < 1e-10
             @test mse(read(str, 50), reference_buf[51:100, :]) < 1e-10
             close(str)
             # now with do syntax
-            loadstream(reference_wav) do str
+            loadstreaming_wav(reference_wav) do str
                 @test mse(read(str, 50), reference_buf[1:50, :]) < 1e-10
                 @test mse(read(str, 50), reference_buf[51:100, :]) < 1e-10
             end
             # now try reading all at once
-            loadstream(reference_wav) do str
+            loadstreaming_wav(reference_wav) do str
                 @test mse(read(str), reference_buf) < 1e-10
             end
         end
 
+        # @testset "Reading from IO Stream" begin
+        #     open(reference_wav) do io
+        #         buf = load(Stream{format"WAV"}(io))
+        #         @test samplerate(buf) == srate
+        #         @test nchannels(buf) == 2
+        #         @test nframes(buf) == 100
+        #         @test isapprox(domain(buf), collect(0:99)/(srate))
+        #         @test mse(buf, reference_buf) < 1e-10
+        #     end
+        #     open(reference_wav) do io
+        #         loadstreaming(Stream{format"WAV"}(io)) do str
+        #             @test nframes(str) == 100
+        #             @test mse(read(str), reference_buf) < 1e-10
+        #         end
+        #     end
+        # end
+
         @testset "WAV file writing (float64)" begin
             fname = string(tempname(), ".wav")
             testbuf = SampleBuf(rand(100, 2) .- 0.5, srate)
-            save(fname, testbuf)
-            buf = load(fname)
+            save_wav(fname, testbuf)
+            buf = load_wav(fname)
             @test eltype(buf) == eltype(testbuf)
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
@@ -123,8 +163,8 @@ try
         @testset "WAV file writing (float32)" begin
             fname = string(tempname(), ".wav")
             testbuf = SampleBuf(rand(Float32, 100, 2) .- 0.5f0, srate)
-            save(fname, testbuf)
-            buf = load(fname)
+            save_wav(fname, testbuf)
+            buf = load_wav(fname)
             @test eltype(buf) == eltype(testbuf)
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
@@ -136,8 +176,8 @@ try
         @testset "OGG file writing" begin
             fname = string(tempname(), ".ogg")
             testbuf = SampleBuf(rand(Float32, 100, 2) .- 0.5, srate)
-            save(fname, testbuf)
-            buf = load(fname)
+            save_ogg(fname, testbuf)
+            buf = load_ogg(fname)
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
@@ -150,8 +190,8 @@ try
             fname = string(tempname(), ".flac")
             arr = map(PCM16Sample, rand(100, 2) .- 0.5)
             testbuf = SampleBuf(arr, srate)
-            save(fname, testbuf)
-            buf = load(fname)
+            save_flac(fname, testbuf)
+            buf = load_flac(fname)
             @test samplerate(buf) == srate
             @test nchannels(buf) == 2
             @test nframes(buf) == 100
@@ -163,39 +203,52 @@ try
             fname = string(tempname(), ".wav")
             arr = map(T, rand(100, 2) .- 0.5)
             testbuf = SampleBuf(arr, srate)
-            save(fname, testbuf)
-            buf = load(fname)
+            save_wav(fname, testbuf)
+            buf = load_wav(fname)
             @test eltype(buf) == T
             @test mse(buf, testbuf) < 1e-10
         end
 
+        # @testset "Writing to stream" begin
+        #     fname = string(tempname(), ".wav")
+        #     arr = map(T, rand(100, 2) .- 0.5)
+        #     testbuf = SampleBuf(arr, srate)
+        #     open(fname, "w") do io
+        #         save(io, testbuf)
+        #     end
+        #     buf = load(fname)
+        #     @test eltype(buf) == T
+        #     @test samplerate(buf) == samplerate(testbuf)
+        #     @test mse(buf, testbuf) < 1e-10
+        # end
+
         @testset "Write errors" begin
             testbuf = SampleBuf(rand(Float32, 100, 2) .- 0.5, srate)
             flacname = string(tempname(), ".flac")
-            @test_throws ErrorException save(abspath(joinpath("does", "not", "exist.wav")), testbuf)
-            @test_throws ErrorException save(flacname, testbuf)
+            @test_throws ErrorException save_flac(abspath("doesnotexist.wav"), testbuf)
+            @test_throws ErrorException save_flac(flacname, testbuf)
         end
 
         @testset "Streaming writing" begin
             fname = string(tempname(), ".wav")
             testbuf = SampleBuf(rand(Float32, 100, 2) .- 0.5, srate)
             # set up a 2-channel Float32 stream
-            stream = savestream(fname, 2, srate, Float32)
+            stream = savestreaming_wav(fname, 2, srate, Float32)
             write(stream, testbuf[1:50, :])
             write(stream, testbuf[51:100, :])
             close(stream)
-            buf = load(fname)
+            buf = load_wav(fname)
             @test mse(buf, testbuf) < 1e-10
 
             # now with do syntax
             fname = string(tempname(), ".wav")
             testbuf = SampleBuf(rand(Float32, 100, 2) .- 0.5, srate)
             # set up a 2-channel Float32 stream
-            savestream(fname, 2, srate, Float32) do stream
+            savestreaming_wav(fname, 2, srate, Float32) do stream
                 write(stream, testbuf[1:50, :])
                 write(stream, testbuf[51:100, :])
             end
-            buf = load(fname)
+            buf = load_wav(fname)
             @test mse(buf, testbuf) < 1e-10
 
         end
@@ -204,7 +257,7 @@ try
             fname = string(tempname(), ".wav")
             testbuf = SampleBuf(rand(Float32, 10000, 2) .- 0.5f0, srate)
             # set up a 2-channel Float32 stream
-            stream = savestream(fname, 2, srate, Float32)
+            stream = savestreaming_wav(fname, 2, srate, Float32)
             io = IOBuffer()
             show(io, stream)
             @test String(take!(io)) == """
@@ -228,9 +281,9 @@ try
         @testset "Source Display" begin
             fname = string(tempname(), ".wav")
             testbuf = SampleBuf(rand(Float32, 10000, 2) .- 0.5f0, srate)
-            save(fname, testbuf)
+            save_wav(fname, testbuf)
             # set up a 2-channel Float32 stream
-            stream = loadstream(fname)
+            stream = loadstreaming_wav(fname)
             io = IOBuffer()
             show(io, stream)
             @test String(take!(io)) == """
