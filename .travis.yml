@@ -6,6 +6,9 @@ os:
 julia:
   - 0.6
   - 0.7
+branches:
+  only:
+    master
 notifications:
   email: false
 script:
