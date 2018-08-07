@@ -1,7 +1,11 @@
 #!/usr/bin/env julia
 
-using Base.Test
-using TestSetExtensions
+using Compat
+if VERSION >= v"0.7-rc2"
+    using Test
+else
+    using Base.Test
+end
 
 using LibSndFile
 using SampledSignals
@@ -17,7 +21,7 @@ function gen_reference(srate)
 end
 
 try
-    @testset ExtendedTestSet "LibSndFile Tests" begin
+    @testset "LibSndFile Tests" begin
         srate = 44100
         # reference file generated with Audacity. Careful to turn dithering off
         # on export for deterministic output!
@@ -105,7 +109,7 @@ try
 
         @testset "WAV file writing (float64)" begin
             fname = string(tempname(), ".wav")
-            testbuf = SampleBuf(rand(100, 2)-0.5, srate)
+            testbuf = SampleBuf(rand(100, 2) .- 0.5, srate)
             save(fname, testbuf)
             buf = load(fname)
             @test eltype(buf) == eltype(testbuf)
@@ -118,7 +122,7 @@ try
 
         @testset "WAV file writing (float32)" begin
             fname = string(tempname(), ".wav")
-            testbuf = SampleBuf(rand(Float32, 100, 2)-0.5f0, srate)
+            testbuf = SampleBuf(rand(Float32, 100, 2) .- 0.5f0, srate)
             save(fname, testbuf)
             buf = load(fname)
             @test eltype(buf) == eltype(testbuf)
@@ -131,7 +135,7 @@ try
 
         @testset "OGG file writing" begin
             fname = string(tempname(), ".ogg")
-            testbuf = SampleBuf(rand(Float32, 100, 2)-0.5, srate)
+            testbuf = SampleBuf(rand(Float32, 100, 2) .- 0.5, srate)
             save(fname, testbuf)
             buf = load(fname)
             @test samplerate(buf) == srate
@@ -144,7 +148,7 @@ try
 
         @testset "FLAC file writing" begin
             fname = string(tempname(), ".flac")
-            arr = map(PCM16Sample, rand(100, 2)-0.5)
+            arr = map(PCM16Sample, rand(100, 2) .- 0.5)
             testbuf = SampleBuf(arr, srate)
             save(fname, testbuf)
             buf = load(fname)
@@ -157,7 +161,7 @@ try
 
         @testset "Writing $T data" for T in [PCM16Sample, PCM32Sample, Float32, Float64]
             fname = string(tempname(), ".wav")
-            arr = map(T, rand(100, 2)-0.5)
+            arr = map(T, rand(100, 2) .- 0.5)
             testbuf = SampleBuf(arr, srate)
             save(fname, testbuf)
             buf = load(fname)
@@ -166,7 +170,7 @@ try
         end
 
         @testset "Write errors" begin
-            testbuf = SampleBuf(rand(Float32, 100, 2)-0.5, srate)
+            testbuf = SampleBuf(rand(Float32, 100, 2) .- 0.5, srate)
             flacname = string(tempname(), ".flac")
             @test_throws ErrorException save(abspath(joinpath("does", "not", "exist.wav")), testbuf)
             @test_throws ErrorException save(flacname, testbuf)
@@ -174,7 +178,7 @@ try
 
         @testset "Streaming writing" begin
             fname = string(tempname(), ".wav")
-            testbuf = SampleBuf(rand(Float32, 100, 2)-0.5, srate)
+            testbuf = SampleBuf(rand(Float32, 100, 2) .- 0.5, srate)
             # set up a 2-channel Float32 stream
             stream = savestream(fname, 2, srate, Float32)
             write(stream, testbuf[1:50, :])
@@ -185,7 +189,7 @@ try
 
             # now with do syntax
             fname = string(tempname(), ".wav")
-            testbuf = SampleBuf(rand(Float32, 100, 2)-0.5, srate)
+            testbuf = SampleBuf(rand(Float32, 100, 2) .- 0.5, srate)
             # set up a 2-channel Float32 stream
             savestream(fname, 2, srate, Float32) do stream
                 write(stream, testbuf[1:50, :])
@@ -198,7 +202,7 @@ try
 
         @testset "Sink Display" begin
             fname = string(tempname(), ".wav")
-            testbuf = SampleBuf(rand(Float32, 10000, 2)-0.5f0, srate)
+            testbuf = SampleBuf(rand(Float32, 10000, 2) .- 0.5f0, srate)
             # set up a 2-channel Float32 stream
             stream = savestream(fname, 2, srate, Float32)
             io = IOBuffer()
@@ -223,7 +227,7 @@ try
 
         @testset "Source Display" begin
             fname = string(tempname(), ".wav")
-            testbuf = SampleBuf(rand(Float32, 10000, 2)-0.5f0, srate)
+            testbuf = SampleBuf(rand(Float32, 10000, 2) .- 0.5f0, srate)
             save(fname, testbuf)
             # set up a 2-channel Float32 stream
             stream = loadstream(fname)

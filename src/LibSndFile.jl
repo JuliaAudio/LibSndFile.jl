@@ -7,6 +7,11 @@ using SampledSignals
 import SampledSignals: nchannels, nframes, samplerate, unsafe_read!, unsafe_write
 using FileIO
 import FileIO: load, save
+if VERSION >= v"0.7-"
+    using Printf: @printf
+    using LinearAlgebra: transpose!
+end
+
 
 # TODO: move these into FileIO.jl
 export loadstream, savestream
@@ -53,10 +58,10 @@ subformatcode(::Type{Float64}) = SF_FORMAT_DOUBLE
 # WAV is a subtype of RIFF, as is AVI
 function detectwav(io)
     seekstart(io)
-    magic = String(read(io, UInt8, 4))
+    magic = String(read!(io, Array{UInt8}(undef, 4)))
     magic == "RIFF" || return false
     seek(io, 8)
-    submagic = String(read(io, UInt8, 4))
+    submagic = String(read!(io, Array{UInt8}(undef, 4)))
 
     submagic == "WAVE"
 end
@@ -81,7 +86,7 @@ function fmt_to_type(fmt)
 end
 
 
-type SF_INFO
+mutable struct SF_INFO
     frames::Int64
     samplerate::Int32
     channels::Int32
@@ -90,9 +95,9 @@ type SF_INFO
     seekable::Int32
 end
 
-type SndFileSink{T} <: SampleSink
+mutable struct SndFileSink{T} <: SampleSink
     path::String
-    filePtr::Ptr{Void}
+    filePtr::Ptr{Cvoid}
     sfinfo::SF_INFO
     nframes::Int64
     writebuf::Array{T, 2}
@@ -100,7 +105,7 @@ end
 
 function SndFileSink(path, filePtr, sfinfo, bufsize=4096)
     T = fmt_to_type(sfinfo.format)
-    writebuf = Array{T}(sfinfo.channels, bufsize)
+    writebuf = zeros(T, sfinfo.channels, bufsize)
     SndFileSink(path, filePtr, sfinfo, 0, writebuf)
 end
 
@@ -109,9 +114,9 @@ samplerate(sink::SndFileSink) = sink.sfinfo.samplerate
 nframes(sink::SndFileSink) = sink.nframes
 Base.eltype(sink::SndFileSink) = fmt_to_type(sink.sfinfo.format)
 
-type SndFileSource{T} <: SampleSource
+mutable struct SndFileSource{T} <: SampleSource
     path::String
-    filePtr::Ptr{Void}
+    filePtr::Ptr{Cvoid}
     sfinfo::SF_INFO
     pos::Int64
     readbuf::Array{T, 2}
@@ -119,7 +124,7 @@ end
 
 function SndFileSource(path, filePtr, sfinfo, bufsize=4096)
     T = fmt_to_type(sfinfo.format)
-    readbuf = Array{T}(sfinfo.channels, bufsize)
+    readbuf = zeros(T, sfinfo.channels, bufsize)
 
     SndFileSource(path, filePtr, sfinfo, 1, readbuf)
 end
@@ -127,7 +132,7 @@ end
 nchannels(source::SndFileSource) = Int(source.sfinfo.channels)
 samplerate(source::SndFileSource) = source.sfinfo.samplerate
 nframes(source::SndFileSource) = source.sfinfo.frames
-Base.eltype{T}(source::SndFileSource{T}) = T
+Base.eltype(source::SndFileSource{T}) where T = T
 
 function Base.show(io::IO, s::Union{SndFileSource, SndFileSink})
     println(io, typeof(s))
@@ -157,12 +162,12 @@ end
 function loadstream(path::File)
     sfinfo = SF_INFO(0, 0, 0, 0, 0, 0)
 
-    filePtr = ccall((:sf_open, libsndfile), Ptr{Void},
-                    (Ptr{UInt8}, Int32, Ptr{SF_INFO}),
-                    filename(path), SFM_READ, &sfinfo)
+    filePtr = ccall((:sf_open, libsndfile), Ptr{Cvoid},
+                    (Ptr{UInt8}, Int32, Ref{SF_INFO}),
+                    filename(path), SFM_READ, sfinfo)
 
     if filePtr == C_NULL
-        errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Void},), filePtr)
+        errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Cvoid},), filePtr)
         error("LibSndFile.jl error while loading $path: ", unsafe_string(errmsg))
     end
 
@@ -170,7 +175,7 @@ function loadstream(path::File)
 end
 
 function Base.close(s::SndFileSource)
-    err = ccall((:sf_close, libsndfile), Int32, (Ptr{Void},), s.filePtr)
+    err = ccall((:sf_close, libsndfile), Int32, (Ptr{Cvoid},), s.filePtr)
     if err != 0
         error("LibSndFile.jl error: Failed to close file")
     end
@@ -184,7 +189,8 @@ function unsafe_read!(source::SndFileSource, buf::Array, frameoffset, framecount
         n = min(size(readbuf, 2), total - nread)
         nr = sf_readf(source.filePtr, readbuf, n)
         # the data comes in interleaved, so we need to transpose
-        transpose!(view(buf, (1:nr)+frameoffset+nread, :), view(readbuf, :, 1:nr))
+        transpose!(view(buf, (1:nr) .+ frameoffset .+ nread, :),
+                   view(readbuf, :, 1:nr))
         source.pos += nr
         nread += nr
         nr == n || break
@@ -219,7 +225,7 @@ function savestream(f::Function, args...)
     end
 end
 
-function savestream{T}(path::File{T}, nchannels, samplerate, elemtype)
+function savestream(path::File{T}, nchannels, samplerate, elemtype) where T
     sfinfo = SF_INFO(0, 0, 0, 0, 0, 0)
 
     sfinfo.samplerate = samplerate
@@ -235,12 +241,12 @@ function savestream{T}(path::File{T}, nchannels, samplerate, elemtype)
         sfinfo.format |= subformatcode(elemtype)
     end
 
-    filePtr = ccall((:sf_open, libsndfile), Ptr{Void},
-                    (Ptr{UInt8}, Int32, Ptr{SF_INFO}),
-                    filename(path), SFM_WRITE, &sfinfo)
+    filePtr = ccall((:sf_open, libsndfile), Ptr{Cvoid},
+                    (Ptr{UInt8}, Int32, Ref{SF_INFO}),
+                    filename(path), SFM_WRITE, sfinfo)
 
     if filePtr == C_NULL
-        errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Void},), filePtr)
+        errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Cvoid},), filePtr)
         error("LibSndFile.jl error while saving $path: ", unsafe_string(errmsg))
     end
 
@@ -254,7 +260,8 @@ function unsafe_write(sink::SndFileSink, buf::Array, frameoffset, framecount)
     while nwritten < framecount
         n = min(size(writebuf, 2), framecount - nwritten)
         # the data needs to be interleaved, so we need to transpose
-        transpose!(view(writebuf, :, 1:n), view(buf, (1:n)+frameoffset+nwritten, :))
+        transpose!(view(writebuf, :, 1:n),
+                   view(buf, (1:n) .+ frameoffset .+ nwritten, :))
         nw = sf_writef(sink.filePtr, writebuf, n)
         sink.nframes += nw
         nwritten += nw
@@ -265,7 +272,7 @@ function unsafe_write(sink::SndFileSink, buf::Array, frameoffset, framecount)
 end
 
 function Base.close(str::SndFileSink)
-    err = ccall((:sf_close, libsndfile), Int32, (Ptr{Void},), str.filePtr)
+    err = ccall((:sf_close, libsndfile), Int32, (Ptr{Cvoid},), str.filePtr)
     if err != 0
         error("LibSndFile.jl error while saving $path: Failed to close file")
     end
@@ -297,24 +304,24 @@ of frames into the given array. Returns the number of frames read.
 """
 function sf_readf end
 
-sf_readf{T <: Union{Int16, PCM16Sample}}(filePtr, dest::Array{T}, nframes) =
+sf_readf(filePtr, dest::Array{T}, nframes) where T <: Union{Int16, PCM16Sample} =
     ccall((:sf_readf_short, libsndfile), Int64,
-        (Ptr{Void}, Ptr{T}, Int64),
+        (Ptr{Cvoid}, Ptr{T}, Int64),
         filePtr, dest, nframes)
 
-sf_readf{T <: Union{Int32, PCM32Sample}}(filePtr, dest::Array{T}, nframes) =
+sf_readf(filePtr, dest::Array{T}, nframes) where T <: Union{Int32, PCM32Sample} =
     ccall((:sf_readf_int, libsndfile), Int64,
-        (Ptr{Void}, Ptr{T}, Int64),
+        (Ptr{Cvoid}, Ptr{T}, Int64),
         filePtr, dest, nframes)
 
 sf_readf(filePtr, dest::Array{Float32}, nframes) =
     ccall((:sf_readf_float, libsndfile), Int64,
-        (Ptr{Void}, Ptr{Float32}, Int64),
+        (Ptr{Cvoid}, Ptr{Float32}, Int64),
         filePtr, dest, nframes)
 
 sf_readf(filePtr, dest::Array{Float64}, nframes) =
     ccall((:sf_readf_double, libsndfile), Int64,
-        (Ptr{Void}, Ptr{Float64}, Int64),
+        (Ptr{Cvoid}, Ptr{Float64}, Int64),
         filePtr, dest, nframes)
 
 """
@@ -323,30 +330,30 @@ of frames into the given array. Returns the number of frames written.
 """
 function sf_writef end
 
-sf_writef{T <: Union{Int16, PCM16Sample}}(filePtr, src::Array{T}, nframes) =
+sf_writef(filePtr, src::Array{T}, nframes) where T <: Union{Int16, PCM16Sample} =
     ccall((:sf_writef_short, libsndfile), Int64,
-                (Ptr{Void}, Ptr{T}, Int64),
+                (Ptr{Cvoid}, Ptr{T}, Int64),
                 filePtr, src, nframes)
 
-sf_writef{T <: Union{Int32, PCM32Sample}}(filePtr, src::Array{T}, nframes) =
+sf_writef(filePtr, src::Array{T}, nframes) where T <: Union{Int32, PCM32Sample} =
     ccall((:sf_writef_int, libsndfile), Int64,
-                (Ptr{Void}, Ptr{T}, Int64),
+                (Ptr{Cvoid}, Ptr{T}, Int64),
                 filePtr, src, nframes)
 
 sf_writef(filePtr, src::Array{Float32}, nframes) =
     ccall((:sf_writef_float, libsndfile), Int64,
-                (Ptr{Void}, Ptr{Float32}, Int64),
+                (Ptr{Cvoid}, Ptr{Float32}, Int64),
                 filePtr, src, nframes)
 
 sf_writef(filePtr, src::Array{Float64}, nframes) =
     ccall((:sf_writef_double, libsndfile), Int64,
-                (Ptr{Void}, Ptr{Float64}, Int64),
+                (Ptr{Cvoid}, Ptr{Float64}, Int64),
                 filePtr, src, nframes)
 
 #
 # function Base.seek(file::AudioFile, offset::Integer, whence::Integer)
 #     new_offset = ccall((:sf_seek, libsndfile), Int64,
-#         (Ptr{Void}, Int64, Int32), file.filePtr, offset, whence)
+#         (Ptr{Cvoid}, Int64, Int32), file.filePtr, offset, whence)
 #
 #     if new_offset < 0
 #         error("Could not seek to $(offset) in file")
