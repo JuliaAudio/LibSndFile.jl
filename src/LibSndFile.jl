@@ -10,6 +10,8 @@ import FileIO: load, save
 if VERSION >= v"0.7-"
     using Printf: @printf
     using LinearAlgebra: transpose!
+else
+    using Compat: Cvoid
 end
 
 
