@@ -155,6 +155,58 @@ function sf_close(filePtr)
     end
 end
 
+"""
+Wrappers for the family of sf_readf_* functions, which read the given number
+of frames into the given array. Returns the number of frames read.
+"""
+function sf_readf end
+
+sf_readf(filePtr, dest::Array{T}, nframes) where T <: Union{Int16, PCM16Sample} =
+    ccall((:sf_readf_short, libsndfile), Int64,
+        (Ptr{Cvoid}, Ptr{T}, Int64),
+        filePtr, dest, nframes)
+
+sf_readf(filePtr, dest::Array{T}, nframes) where T <: Union{Int32, PCM32Sample} =
+    ccall((:sf_readf_int, libsndfile), Int64,
+        (Ptr{Cvoid}, Ptr{T}, Int64),
+        filePtr, dest, nframes)
+
+sf_readf(filePtr, dest::Array{Float32}, nframes) =
+    ccall((:sf_readf_float, libsndfile), Int64,
+        (Ptr{Cvoid}, Ptr{Float32}, Int64),
+        filePtr, dest, nframes)
+
+sf_readf(filePtr, dest::Array{Float64}, nframes) =
+    ccall((:sf_readf_double, libsndfile), Int64,
+        (Ptr{Cvoid}, Ptr{Float64}, Int64),
+        filePtr, dest, nframes)
+
+"""
+Wrappers for the family of sf_writef_* functions, which write the given number
+of frames into the given array. Returns the number of frames written.
+"""
+function sf_writef end
+
+sf_writef(filePtr, src::Array{T}, nframes) where T <: Union{Int16, PCM16Sample} =
+    ccall((:sf_writef_short, libsndfile), Int64,
+                (Ptr{Cvoid}, Ptr{T}, Int64),
+                filePtr, src, nframes)
+
+sf_writef(filePtr, src::Array{T}, nframes) where T <: Union{Int32, PCM32Sample} =
+    ccall((:sf_writef_int, libsndfile), Int64,
+                (Ptr{Cvoid}, Ptr{T}, Int64),
+                filePtr, src, nframes)
+
+sf_writef(filePtr, src::Array{Float32}, nframes) =
+    ccall((:sf_writef_float, libsndfile), Int64,
+                (Ptr{Cvoid}, Ptr{Float32}, Int64),
+                filePtr, src, nframes)
+
+sf_writef(filePtr, src::Array{Float64}, nframes) =
+    ccall((:sf_writef_double, libsndfile), Int64,
+                (Ptr{Cvoid}, Ptr{Float64}, Int64),
+                filePtr, src, nframes)
+
 function sf_strerror()
     errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Cvoid},), filePtr)
     unsafe_string(errmsg)
