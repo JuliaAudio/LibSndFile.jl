@@ -18,7 +18,7 @@ end
 
 include("libsndfile_h.jl")
 
-supported_formats = (format"WAV", format"FLAC", format"OGG")
+const supported_formats = (format"WAV", format"FLAC", format"OGG")
 
 function __init__()
     # ogg currently not in the registry
@@ -165,7 +165,7 @@ function unsafe_read!(source::SndFileSource, buf::Array, frameoffset, framecount
     nread
 end
 
-for T in (:File, :Stream), fmt in (format"WAV", format"FLAC", format"OGG")
+for T in (:File, :Stream), fmt in supported_formats
     @eval @inline load(src::$T{$fmt}, args...) = load_helper(src, args...)
 end
 
@@ -233,9 +233,10 @@ function Base.close(str::SndFileSink)
     end
 end
 
-save(path::File{format"WAV"},buf::SampleBuf) = save_helper(path,buf)
-save(path::File{format"FLAC"},buf::SampleBuf) = save_helper(path,buf)
-save(path::File{format"OGG"},buf::SampleBuf) = save_helper(path,buf)
+for fmt in supported_formats
+    @eval save(path::File{$fmt}, buf::SampleBuf) = save_helper(path, buf)
+end
+
 function save_helper(path::File, buf::SampleBuf)
     sfinfo = SF_INFO()
     stream = savestreaming(path, nchannels(buf), samplerate(buf), eltype(buf))
