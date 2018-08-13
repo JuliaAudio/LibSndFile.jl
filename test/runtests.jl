@@ -9,6 +9,7 @@ end
 
 #using FileIO: load, save, loadstreaming, savestreaming
 using FileIO: File, Stream, @format_str
+import FileIO
 # using LibSndFile: load, save, loadstreaming, savestreaming
 import LibSndFile
 using SampledSignals
@@ -74,14 +75,6 @@ try
             @test_throws ErrorException load_wav("doesnotexist.wav")
         end
 
-        @testset "WAV file detection" begin
-            open(reference_wav) do stream
-                @test LibSndFile.detectwav(stream)
-            end
-            open(reference_flac) do stream
-                @test !LibSndFile.detectwav(stream)
-            end
-        end
         @testset "WAV file reading" begin
             buf = load_wav(reference_wav)
             @test samplerate(buf) == srate
@@ -265,6 +258,17 @@ try
             buf = load_wav(fname)
             @test mse(buf, testbuf) < 1e-10
 
+        end
+
+        @testset "FileIO Integration" begin
+            arr = map(PCM16Sample, rand(100, 2) .- 0.5)
+            testbuf = SampleBuf(arr, srate)
+            for ext in (".wav", ".ogg", ".flac")
+                fname = string(tempname(), ext)
+                FileIO.save(fname, testbuf)
+                buf = FileIO.load(fname)
+                @test buf isa SampleBuf
+            end
         end
 
         @testset "Sink Display" begin

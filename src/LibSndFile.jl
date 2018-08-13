@@ -7,7 +7,8 @@ module LibSndFile
 using SampledSignals
 # TODO: switch to qualified method extension instead of importing here
 import SampledSignals: nchannels, nframes, samplerate, unsafe_read!, unsafe_write
-using FileIO: File, Stream, filename, stream, del_format, add_format, @format_str
+using FileIO: File, Stream, filename, stream
+using FileIO: add_format, add_loader, add_saver, @format_str
 if VERSION >= v"0.7-"
     using Printf: @printf
     using LinearAlgebra: transpose!
@@ -17,14 +18,15 @@ end
 
 include("libsndfile_h.jl")
 
+supported_formats = (format"WAV", format"FLAC", format"OGG")
+
 function __init__()
-    # this needs to be run when the module is loaded at run-time, even if
-    # the module is precompiled.
-    del_format(format"WAV")
-    add_format(format"WAV", detectwav, ".wav", [:LibSndFile])
-    del_format(format"FLAC")
-    add_format(format"FLAC", "fLaC", ".flac", [:LibSndFile])
+    # ogg currently not in the registry
     add_format(format"OGG", "OggS", [".ogg", ".oga"], [:LibSndFile])
+    for fmt in supported_formats
+        add_loader(fmt, :LibSndFile)
+        add_saver(fmt, :LibSndFile)
+    end
 end
 
 depsjl = joinpath(@__DIR__, "..", "deps", "deps.jl")
@@ -32,17 +34,6 @@ if isfile(depsjl)
     include(depsjl)
 else
     error("LibSndFile not properly installed. Please run Pkg.build(\"LibSndFile\")")
-end
-
-# WAV is a subtype of RIFF, as is AVI
-function detectwav(io)
-    seekstart(io)
-    magic = String(read!(io, Array{UInt8}(undef, 4)))
-    magic == "RIFF" || return false
-    seek(io, 8)
-    submagic = String(read!(io, Array{UInt8}(undef, 4)))
-
-    submagic == "WAVE"
 end
 
 # wrapper around an arbitrary IO stream that also includes its length, which
