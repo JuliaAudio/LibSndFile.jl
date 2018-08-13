@@ -17,6 +17,7 @@ else
 end
 
 include("libsndfile_h.jl")
+include("lengthIO.jl")
 
 const supported_formats = (format"WAV", format"FLAC", format"OGG")
 
@@ -36,53 +37,18 @@ else
     error("LibSndFile not properly installed. Please run Pkg.build(\"LibSndFile\")")
 end
 
-# wrapper around an arbitrary IO stream that also includes its length, which
-# libsndfile requires. Needs to be mutable so it's stored as a reference and
-# we can pass a pointer into the C code
-mutable struct LengthIO{T<:IO} <: IO
-    io::T
-    length::Int
-end
-
-Base.length(io::LengthIO) = io.length
-for f in (:read, :read!, :write, :readbytes!,
-          :unsafe_read, :unsafe_write,
-          :seek, :seekstart, :seekend, :position, :skip,
-          :close)
-    @eval @inline Base.$f(io::LengthIO, args...) = $f(io.io, args...)
-end
-# needed for method ambiguity resolution
-Base.readbytes!(io::LengthIO, arr::AbstractArray{UInt8,N} where N) = readbytes!(io.io, arr)
-
-"""
-    inferlen(io)
-
-Try to infer the length of `io` in bytes
-"""
-inferlen(io::IOBuffer) = io.size
-inferlen(io::IOStream) = filesize(io)
-function inferlen(io::Stream)
-    fname = filename(io)
-    if fname !== nothing
-        filesize(fname)
-    else
-        inferlen(stream(io))
-    end
-end
-inferlen(io) = throw(ArgumentError("file length could not be inferred and must be passed explicitly"))
-
-mutable struct SndFileSink{T} <: SampleSink
-    src::Union{String, Nothing}
+mutable struct SndFileSink{T, S<:Union{String, IO}} <: SampleSink
+    src::S # the stream or filename used to create this
     filePtr::Ptr{Cvoid}
     sfinfo::SF_INFO
     nframes::Int64
     writebuf::Array{T, 2}
 end
 
-function SndFileSink(path, filePtr, sfinfo, bufsize=4096)
+function SndFileSink(src, filePtr, sfinfo, bufsize=4096)
     T = fmt_to_type(sfinfo.format)
     writebuf = zeros(T, sfinfo.channels, bufsize)
-    SndFileSink(path, filePtr, sfinfo, 0, writebuf)
+    SndFileSink(src, filePtr, sfinfo, 0, writebuf)
 end
 
 nchannels(sink::SndFileSink) = Int(sink.sfinfo.channels)
@@ -143,8 +109,13 @@ function loadstreaming(src::Stream, filelen=inferlen(src))
     SndFileSource(io, filePtr, sfinfo)
 end
 
-function Base.close(s::SndFileSource)
-    sf_close(s.filePtr)
+function Base.close(s::Union{SndFileSource, SndFileSink})
+    if s.filePtr != C_NULL
+        sf_close(s.filePtr)
+        s.filePtr = C_NULL
+    else
+        @warn "close called more than once on $s"
+    end
 end
 
 function unsafe_read!(source::SndFileSource, buf::Array, frameoffset, framecount)
@@ -224,13 +195,6 @@ function unsafe_write(sink::SndFileSink, buf::Array, frameoffset, framecount)
     end
 
     nwritten
-end
-
-function Base.close(str::SndFileSink)
-    err = ccall((:sf_close, libsndfile), Int32, (Ptr{Cvoid},), str.filePtr)
-    if err != 0
-        error("LibSndFile.jl error while saving $path: Failed to close file")
-    end
 end
 
 for fmt in supported_formats

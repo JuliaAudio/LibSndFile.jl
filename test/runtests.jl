@@ -139,6 +139,12 @@ try
 
         @testset "Reading from IO Stream" begin
             open(reference_wav) do io
+                loadstreaming_wav(io) do str
+                    @test nframes(str) == 100
+                    @test mse(read(str), reference_buf) < 1e-10
+                end
+            end
+            open(reference_wav) do io
                 buf = load_wav(io)
                 @test samplerate(buf) == srate
                 @test nchannels(buf) == 2
@@ -146,13 +152,32 @@ try
                 @test isapprox(domain(buf), collect(0:99)/(srate))
                 @test mse(buf, reference_buf) < 1e-10
             end
-            open(reference_wav) do io
-                loadstreaming_wav(io) do str
-                    @test nframes(str) == 100
-                    @test mse(read(str), reference_buf) < 1e-10
-                end
-            end
         end
+
+        # @testset "Writing to IO Streams" begin
+        #     fname = string(tempname(), ".wav")
+        #     testbuf = SampleBuf(rand(100, 2) .- 0.5, srate)
+        #     open(fname, "w") do io
+        #         savestreaming_wav(io) do str
+        #             write(str, testbuf[1:50])
+        #             write(str, testbuf[51:100])
+        #         end
+        #     end
+        #     @test load_wav(fname) == testbuf
+        #     fname = string(tempname(), ".wav")
+        #     open(fname, "w") do io
+        #         save_wav(io, testbuf)
+        #     end
+        #     @test load_wav(fname) == testbuf
+        # end
+
+        # @testset "Supports IOBuffer" begin
+        #     io = IOBuffer()
+        #     testbuf = SampleBuf(rand(100, 2) .- 0.5, srate)
+        #     save_wav(io, testbuf)
+        #     seek(io, 0)
+        #     @test load_wav(io) == testbuf
+        # end
 
         @testset "WAV file writing (float64)" begin
             fname = string(tempname(), ".wav")
@@ -279,7 +304,7 @@ try
             io = IOBuffer()
             show(io, stream)
             @test String(take!(io)) == """
-            LibSndFile.SndFileSink{Float32}
+            LibSndFile.SndFileSink{Float32,String}
               path: "$fname"
               channels: 2
               samplerate: 44100Hz
@@ -288,7 +313,7 @@ try
             write(stream, testbuf)
             show(io, stream)
             @test String(take!(io)) == """
-            LibSndFile.SndFileSink{Float32}
+            LibSndFile.SndFileSink{Float32,String}
               path: "$fname"
               channels: 2
               samplerate: 44100Hz

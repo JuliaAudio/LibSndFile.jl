@@ -142,7 +142,7 @@ function sf_open(io::T, mode, sfinfo) where T <: IO
                     virtio, SFM_READ, sfinfo, pointer_from_objref(io))
     if filePtr == C_NULL
         errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Cvoid},), filePtr)
-        error("LibSndFile.jl error while loading $fname: ", unsafe_string(errmsg))
+        error("LibSndFile.jl error while loading from stream: ", sf_strerror())
     end
 
     filePtr
@@ -151,6 +151,11 @@ end
 function sf_close(filePtr)
     err = ccall((:sf_close, libsndfile), Int32, (Ptr{Cvoid},), filePtr)
     if err != 0
-        error("LibSndFile.jl error: Failed to close file")
+        error("LibSndFile.jl error: Failed to close file: ", sf_strerror())
     end
+end
+
+function sf_strerror()
+    errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Cvoid},), filePtr)
+    unsafe_string(errmsg)
 end
