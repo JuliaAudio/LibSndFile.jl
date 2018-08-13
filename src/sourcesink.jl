@@ -30,12 +30,12 @@ end
 
 const SndFileStream{T, S} = Union{SndFileSource{T, S}, SndFileSink{T, S}}
 
-nchannels(str::SndFileStream) = Int(str.sfinfo.channels)
-samplerate(str::SndFileStream) = str.sfinfo.samplerate
+SampledSignals.nchannels(str::SndFileStream) = Int(str.sfinfo.channels)
+SampledSignals.samplerate(str::SndFileStream) = str.sfinfo.samplerate
 Base.eltype(str::SndFileStream{T, S}) where {T, S} = T
 
-nframes(sink::SndFileSink) = sink.nframes
-nframes(source::SndFileSource) = source.sfinfo.frames
+SampledSignals.nframes(sink::SndFileSink) = sink.nframes
+SampledSignals.nframes(source::SndFileSource) = source.sfinfo.frames
 
 function Base.close(s::SndFileStream)
     if s.filePtr != C_NULL

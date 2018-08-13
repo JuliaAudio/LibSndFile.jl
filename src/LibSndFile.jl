@@ -3,10 +3,10 @@ VERSION < v"0.7.0-rc2" && __precompile__()
 
 module LibSndFile
 
-# TODO: only pull in the names that we need
-using SampledSignals
-# TODO: switch to qualified method extension instead of importing here
-import SampledSignals: nchannels, nframes, samplerate, unsafe_read!, unsafe_write
+import SampledSignals
+using SampledSignals: SampleSource, SampleSink, SampleBuf
+using SampledSignals: PCM16Sample, PCM32Sample
+using SampledSignals: nframes, nchannels, samplerate
 using FileIO: File, Stream, filename, stream
 using FileIO: add_format, add_loader, add_saver, @format_str
 if VERSION >= v"0.7-"

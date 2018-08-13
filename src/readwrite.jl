@@ -1,4 +1,4 @@
-function unsafe_read!(source::SndFileSource, buf::Array, frameoffset, framecount)
+function SampledSignals.unsafe_read!(source::SndFileSource, buf::Array, frameoffset, framecount)
     total = min(framecount, nframes(source) - source.pos + 1)
     nread = 0
     readbuf = source.readbuf
@@ -17,7 +17,7 @@ function unsafe_read!(source::SndFileSource, buf::Array, frameoffset, framecount
 end
 
 # returns the number of samples written
-function unsafe_write(sink::SndFileSink, buf::Array, frameoffset, framecount)
+function SampledSignals.unsafe_write(sink::SndFileSink, buf::Array, frameoffset, framecount)
     nwritten = 0
     writebuf = sink.writebuf
     while nwritten < framecount
