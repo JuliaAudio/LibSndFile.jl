@@ -13,7 +13,7 @@ if VERSION >= v"0.7-"
     using Printf: @printf
     using LinearAlgebra: transpose!
 else
-    using Compat: Cvoid, @cfunction
+    using Compat: Cvoid, @cfunction, @warn
 end
 
 const supported_formats = (format"WAV", format"FLAC", format"OGG")
