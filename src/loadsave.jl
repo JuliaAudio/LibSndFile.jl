@@ -21,6 +21,8 @@ for T in (:File, :Stream), fmt in supported_formats
     @eval @inline load(src::$T{$fmt}, args...) = load_helper(src, args...)
 end
 
+# convert a `load` call into a `loadstreaming` call that properly
+# cleans up the stream
 function load_helper(src::Union{File, Stream}, args...)
     str = loadstreaming(src, args...)
     buf = try
@@ -32,7 +34,7 @@ function load_helper(src::Union{File, Stream}, args...)
     buf
 end
 
-function savestreaming(path::File{T}, nchannels, samplerate, elemtype) where T
+function savestreaming(src::Union{File{T}, Stream{T}}, nchannels, samplerate, elemtype) where T
     sfinfo = SF_INFO()
 
     sfinfo.samplerate = samplerate
@@ -42,31 +44,26 @@ function savestreaming(path::File{T}, nchannels, samplerate, elemtype) where T
     if T == format"FLAC" && elemtype != PCM16Sample
         error("LibSndFile.jl: FLAC only supports 16-bit integer samples")
     end
+    # will probably need to figure out how this would interact with
+    # ogg opus files
     if T == format"OGG"
         sfinfo.format |= SF_FORMAT_VORBIS
     else
         sfinfo.format |= subformatcode(elemtype)
     end
 
-    filePtr = ccall((:sf_open, libsndfile), Ptr{Cvoid},
-                    (Ptr{UInt8}, Int32, Ref{SF_INFO}),
-                    filename(path), SFM_WRITE, sfinfo)
+    filePtr = sf_open(filename(src), SFM_WRITE, sfinfo)
 
-    if filePtr == C_NULL
-        errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Cvoid},), filePtr)
-        error("LibSndFile.jl error while saving $path: ", unsafe_string(errmsg))
-    end
-
-    SndFileSink(filename(path), filePtr, sfinfo)
+    SndFileSink(filename(src), filePtr, sfinfo)
 end
 
-for fmt in supported_formats
-    @eval save(path::File{$fmt}, buf::SampleBuf) = save_helper(path, buf)
+for T in (:File, :Stream), fmt in supported_formats
+    @eval @inline save(src::$T{$fmt}, args...) = save_helper(src, args...)
 end
 
-function save_helper(path::File, buf::SampleBuf)
+function save_helper(src, buf::SampleBuf)
     sfinfo = SF_INFO()
-    stream = savestreaming(path, nchannels(buf), samplerate(buf), eltype(buf))
+    stream = savestreaming(src, nchannels(buf), samplerate(buf), eltype(buf))
 
     try
         frameswritten = write(stream, buf)
