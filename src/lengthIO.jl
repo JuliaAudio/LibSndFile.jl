@@ -15,6 +15,7 @@ for f in (:read, :read!, :write, :readbytes!,
 end
 # needed for method ambiguity resolution
 Base.readbytes!(io::LengthIO, arr::AbstractArray{UInt8,N} where N) = readbytes!(io.io, arr)
+Base.unsafe_write(io::LengthIO, ptr::Ptr, count::Integer) = unsafe_write(io.io, ptr, count)
 
 """
     inferlen(io)

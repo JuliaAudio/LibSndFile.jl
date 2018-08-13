@@ -26,7 +26,9 @@ function virtual_seek(offset, whence, userdata)::sf_count_t
         skip(io, offset)
         cur+offset
     elseif whence == SF_SEEK_END
-        throw(ArgumentError("seeking with SF_SEEK_END not implemented"))
+        seekend(io)
+        skip(io, offset)
+        position(io)
     else
         throw(ArgumentError("Got `whence` value of $whence. Expected 0, 1, or 2"))
     end

@@ -57,10 +57,6 @@ function gen_reference(srate)
     0.5sin.(phase)
 end
 
-# don't indent the individual testsets so we can more easily run them from
-# Juno
-@testset "LibSndFile Tests" begin
-
 srate = 44100
 # reference file generated with Audacity. Careful to turn dithering off
 # on export for deterministic output!
@@ -71,6 +67,10 @@ reference_wav_pcm24 = joinpath(dirname(@__FILE__), "440left_880right_0.5amp_pcm2
 reference_ogg = joinpath(dirname(@__FILE__), "440left_880right_0.5amp.ogg")
 reference_flac = joinpath(dirname(@__FILE__), "440left_880right_0.5amp.flac")
 reference_buf = gen_reference(srate)
+
+# don't indent the individual testsets so we can more easily run them from
+# Juno
+@testset "LibSndFile Tests" begin
 
 @testset "Read errors" begin
     @test_throws ErrorException load_wav("doesnotexist.wav")
@@ -155,30 +155,30 @@ end
     end
 end
 
-# @testset "Writing to IO Streams" begin
-#     fname = string(tempname(), ".wav")
-#     testbuf = SampleBuf(rand(100, 2) .- 0.5, srate)
-#     open(fname, "w") do io
-#         savestreaming_wav(io) do str
-#             write(str, testbuf[1:50])
-#             write(str, testbuf[51:100])
-#         end
-#     end
-#     @test load_wav(fname) == testbuf
-#     fname = string(tempname(), ".wav")
-#     open(fname, "w") do io
-#         save_wav(io, testbuf)
-#     end
-#     @test load_wav(fname) == testbuf
-# end
-#
-# @testset "Supports IOBuffer" begin
-#     io = IOBuffer()
-#     testbuf = SampleBuf(rand(100, 2) .- 0.5, srate)
-#     save_wav(io, testbuf)
-#     seek(io, 0)
-#     @test load_wav(io) == testbuf
-# end
+@testset "Writing to IO Streams" begin
+    fname = string(tempname(), ".wav")
+    testbuf = SampleBuf(rand(Float32, 100, 2) .- 0.5, srate)
+    open(fname, "w") do io
+        savestreaming_wav(io, 2, srate, Float32) do str
+            write(str, testbuf[1:50, :])
+            write(str, testbuf[51:100, :])
+        end
+    end
+    @test load_wav(fname) == testbuf
+    fname = string(tempname(), ".wav")
+    open(fname, "w") do io
+        save_wav(io, testbuf)
+    end
+    @test load_wav(fname) == testbuf
+end
+
+@testset "Supports IOBuffer" begin
+    io = IOBuffer()
+    testbuf = SampleBuf(rand(100, 2) .- 0.5, srate)
+    save_wav(io, testbuf)
+    seek(io, 0)
+    @test load_wav(io) == testbuf
+end
 
 @testset "WAV file writing (float64)" begin
     fname = string(tempname(), ".wav")

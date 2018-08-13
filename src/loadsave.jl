@@ -9,7 +9,6 @@ end
 
 function loadstreaming(src::Stream, filelen=inferlen(src))
     sfinfo = SF_INFO()
-    fname = filename(src)
     io = LengthIO(stream(src), filelen)
     # sf_open fills in sfinfo
     filePtr = sf_open(io, SFM_READ, sfinfo)
@@ -40,6 +39,11 @@ function savestreaming(src::Union{File{T}, Stream{T}}, nchannels, samplerate, el
     sfinfo.samplerate = samplerate
     sfinfo.channels = nchannels
     sfinfo.format = formatcode(T)
+    io = if src isa Stream
+        LengthIO(stream(src), 0)
+    else
+        filename(src)
+    end
     # TODO: should we auto-convert 32-bit integer samples to 24-bit?
     if T == format"FLAC" && elemtype != PCM16Sample
         error("LibSndFile.jl: FLAC only supports 16-bit integer samples")
@@ -52,9 +56,9 @@ function savestreaming(src::Union{File{T}, Stream{T}}, nchannels, samplerate, el
         sfinfo.format |= subformatcode(elemtype)
     end
 
-    filePtr = sf_open(filename(src), SFM_WRITE, sfinfo)
+    filePtr = sf_open(io, SFM_WRITE, sfinfo)
 
-    SndFileSink(filename(src), filePtr, sfinfo)
+    SndFileSink(io, filePtr, sfinfo)
 end
 
 for T in (:File, :Stream), fmt in supported_formats
