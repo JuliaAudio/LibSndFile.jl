@@ -3,15 +3,19 @@ VERSION < v"0.7.0-rc2" && __precompile__()
 
 module LibSndFile
 
+# TODO: only pull in the names that we need
 using SampledSignals
+# TODO: switch to qualified method extension instead of importing here
 import SampledSignals: nchannels, nframes, samplerate, unsafe_read!, unsafe_write
-using FileIO
+using FileIO: File, Stream, filename, stream, del_format, add_format, @format_str
 if VERSION >= v"0.7-"
     using Printf: @printf
     using LinearAlgebra: transpose!
 else
-    using Compat: Cvoid
+    using Compat: Cvoid, @cfunction
 end
+
+include("libsndfile_h.jl")
 
 function __init__()
     # this needs to be run when the module is loaded at run-time, even if
@@ -23,7 +27,6 @@ function __init__()
     add_format(format"OGG", "OggS", [".ogg", ".oga"], [:LibSndFile])
 end
 
-include("libsndfile_h.jl")
 depsjl = joinpath(@__DIR__, "..", "deps", "deps.jl")
 if isfile(depsjl)
     include(depsjl)
@@ -42,8 +45,43 @@ function detectwav(io)
     submagic == "WAVE"
 end
 
+# wrapper around an arbitrary IO stream that also includes its length, which
+# libsndfile requires. Needs to be mutable so it's stored as a reference and
+# we can pass a pointer into the C code
+mutable struct LengthIO{T<:IO} <: IO
+    io::T
+    length::Int
+end
+
+Base.length(io::LengthIO) = io.length
+for f in (:read, :read!, :write, :readbytes!,
+          :unsafe_read, :unsafe_write,
+          :seek, :seekstart, :seekend, :position, :skip,
+          :close)
+    @eval @inline Base.$f(io::LengthIO, args...) = $f(io.io, args...)
+end
+# needed for method ambiguity resolution
+Base.readbytes!(io::LengthIO, arr::AbstractArray{UInt8,N} where N) = readbytes!(io.io, arr)
+
+"""
+    inferlen(io)
+
+Try to infer the length of `io` in bytes
+"""
+inferlen(io::IOBuffer) = io.size
+inferlen(io::IOStream) = filesize(io)
+function inferlen(io::Stream)
+    fname = filename(io)
+    if fname !== nothing
+        filesize(fname)
+    else
+        inferlen(stream(io))
+    end
+end
+inferlen(io) = throw(ArgumentError("file length could not be inferred and must be passed explicitly"))
+
 mutable struct SndFileSink{T} <: SampleSink
-    path::String
+    src::Union{String, Nothing}
     filePtr::Ptr{Cvoid}
     sfinfo::SF_INFO
     nframes::Int64
@@ -61,19 +99,20 @@ samplerate(sink::SndFileSink) = sink.sfinfo.samplerate
 nframes(sink::SndFileSink) = sink.nframes
 Base.eltype(sink::SndFileSink) = fmt_to_type(sink.sfinfo.format)
 
-mutable struct SndFileSource{T} <: SampleSource
-    path::String
+# src is either a string representing the path to the file, or an IO stream
+mutable struct SndFileSource{T, S<:Union{String, LengthIO}} <: SampleSource
+    src::S
     filePtr::Ptr{Cvoid}
     sfinfo::SF_INFO
     pos::Int64
     readbuf::Array{T, 2}
 end
 
-function SndFileSource(path, filePtr, sfinfo, bufsize=4096)
+function SndFileSource(src, filePtr, sfinfo, bufsize=4096)
     T = fmt_to_type(sfinfo.format)
     readbuf = zeros(T, sfinfo.channels, bufsize)
 
-    SndFileSource(path, filePtr, sfinfo, 1, readbuf)
+    SndFileSource(src, filePtr, sfinfo, 1, readbuf)
 end
 
 nchannels(source::SndFileSource) = Int(source.sfinfo.channels)
@@ -83,7 +122,7 @@ Base.eltype(source::SndFileSource{T}) where T = T
 
 function Base.show(io::IO, s::Union{SndFileSource, SndFileSink})
     println(io, typeof(s))
-    println(io, "  path: \"$(s.path)\"")
+    println(io, "  path: \"$(s.src)\"")
     println(io, "  channels: ", nchannels(s))
     println(io, "  samplerate: ", samplerate(s), "Hz")
     # SndFileSinks don't have a position and we're always at the end
@@ -94,25 +133,23 @@ function Base.show(io::IO, s::Union{SndFileSource, SndFileSink})
     @printf(io, "            %0.2f of %0.2f seconds", postime, endtime)
 end
 
-loadstreaming(path::AbstractString, args...; kwargs...) =
-    loadstreaming(query(path), args...; kwargs...)
-
-function loadstreaming(f::Function, args...)
-    str = loadstreaming(args...)
-    try
-        f(str)
-    finally
-        close(str)
-    end
-end
-
-function loadstreaming(path::File)
-    sfinfo = SF_INFO(0, 0, 0, 0, 0, 0)
-    fname = filename(path)
+function loadstreaming(src::File)
+    sfinfo = SF_INFO()
+    fname = filename(src)
     # sf_open fills in sfinfo
     filePtr = sf_open(fname, SFM_READ, sfinfo)
 
     SndFileSource(fname, filePtr, sfinfo)
+end
+
+function loadstreaming(src::Stream, filelen=inferlen(src))
+    sfinfo = SF_INFO()
+    fname = filename(src)
+    io = LengthIO(stream(src), filelen)
+    # sf_open fills in sfinfo
+    filePtr = sf_open(io, SFM_READ, sfinfo)
+
+    SndFileSource(io, filePtr, sfinfo)
 end
 
 function Base.close(s::SndFileSource)
@@ -137,11 +174,12 @@ function unsafe_read!(source::SndFileSource, buf::Array, frameoffset, framecount
     nread
 end
 
-load(path::File{format"WAV"}) = load_helper(path)
-load(path::File{format"FLAC"}) = load_helper(path)
-load(path::File{format"OGG"}) = load_helper(path)
-function load_helper(path::File)
-    str = loadstreaming(path)
+for T in (:File, :Stream), fmt in (format"WAV", format"FLAC", format"OGG")
+    @eval @inline load(src::$T{$fmt}, args...) = load_helper(src, args...)
+end
+
+function load_helper(src::Union{File, Stream}, args...)
+    str = loadstreaming(src, args...)
     buf = try
         read(str)
     finally
@@ -151,20 +189,8 @@ function load_helper(path::File)
     buf
 end
 
-savestreaming(path::AbstractString, args...; kwargs...) =
-    savestreaming(query(path), args...; kwargs...)
-
-function savestreaming(f::Function, args...)
-    stream = savestreaming(args...)
-    try
-        f(stream)
-    finally
-        close(stream)
-    end
-end
-
 function savestreaming(path::File{T}, nchannels, samplerate, elemtype) where T
-    sfinfo = SF_INFO(0, 0, 0, 0, 0, 0)
+    sfinfo = SF_INFO()
 
     sfinfo.samplerate = samplerate
     sfinfo.channels = nchannels
@@ -220,7 +246,7 @@ save(path::File{format"WAV"},buf::SampleBuf) = save_helper(path,buf)
 save(path::File{format"FLAC"},buf::SampleBuf) = save_helper(path,buf)
 save(path::File{format"OGG"},buf::SampleBuf) = save_helper(path,buf)
 function save_helper(path::File, buf::SampleBuf)
-    sfinfo = SF_INFO(0, 0, 0, 0, 0, 0)
+    sfinfo = SF_INFO()
     stream = savestreaming(path, nchannels(buf), samplerate(buf), eltype(buf))
 
     try

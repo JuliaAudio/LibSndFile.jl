@@ -117,59 +117,13 @@ mutable struct SF_INFO
     seekable::Int32
 end
 
-# this contains a collection of function pointers that libsndfile uses to
-# read and write data in a buffer
-struct SF_VIRTUAL_IO
-    get_filelen::Ptr{Cvoid}
-    seek::Ptr{Cvoid}
-    read::Ptr{Cvoid}
-    write::Ptr{Cvoid}
-    tell::Ptr{Cvoid}
-end
+SF_INFO() = SF_INFO(0, 0, 0, 0, 0, 0)
 
-function SF_VIRTUAL_IO(get_filelen::Function, seek::Function,
-                       read::Function, write::Function, tell::Function)
-    SF_VIRTUAL_IO(
-        @cfunction($get_filelen, sf_count_t, (Ptr{Cvoid}, )),
-        @cfunction($seek,        sf_count_t, (sf_count_t, Int32, Ptr{Cvoid})),
-        @cfunction($read,        sf_count_t, (Ptr{Cvoid}, sf_count_t, Ptr{Cvoid})),
-        @cfunction($write,       sf_count_t, (Ptr{Cvoid}, sf_count_t, Ptr{Cvoid})),
-        @cfunction($tell,        sf_count_t, (Ptr{Cvoid}, ))
-    )
-end
+function sf_open(fname::String, mode, sfinfo)
+    filePtr = ccall((:sf_open, libsndfile), Ptr{Cvoid},
+                    (Cstring, Int32, Ref{SF_INFO}),
+                    fname, SFM_READ, sfinfo)
 
-function SF_VIRTUAL_IO(io::IO)
-    # we generally don't know the length of the stream
-    lenfunc(userdata) = typemax(sf_count_t)
-    function seekfunc(offset, whence, userdata)
-        if whence == SF_SEEK_SET
-            seek(io, offset)
-            offset
-        elseif whence == SF_SEEK_CUR
-            cur = position(io)
-            skip(io, offset)
-            cur+offset
-        elseif whence == SF_SEEK_END
-            throw(ArgumentError("seeking with SF_SEEK_END not implemented"))
-        else
-            throw(ArgumentError("Got `whence` value of $whence. Expected 0, 1, or 2"))
-        end
-    end
-    readfunc(dest, count, userdata) = readbytes!(io, unsafe_wrap(Array, Ptr{UInt8}(dest), count))
-    function writefunc(src, count, userdata)
-        unsafe_write(io, src, count)
-        count
-    end
-    tellfunc(userdata) = position(io)
-
-    SF_VIRTUAL_IO(lenfunc, seekfunc, readfunc, writefunc, tellfunc)
-end
-
-function sf_open(io::IO, mode, sfinfo)
-    virtio = SF_VIRTUAL_IO(io)
-    filePtr = ccall((:sf_open_virtual, libsndfile), Ptr{Cvoid},
-                    (Ref{SF_VIRTUAL_IO}, Int32, Ref{SF_INFO}, Ptr{Cvoid}),
-                    virtio, SFM_READ, sfinfo, C_NULL)
     if filePtr == C_NULL
         errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Cvoid},), filePtr)
         error("LibSndFile.jl error while loading $fname: ", unsafe_string(errmsg))
@@ -178,11 +132,14 @@ function sf_open(io::IO, mode, sfinfo)
     filePtr
 end
 
-function sf_open(fname::String, mode, sfinfo)
-    filePtr = ccall((:sf_open, libsndfile), Ptr{Cvoid},
-                    (Cstring, Int32, Ref{SF_INFO}),
-                    fname, SFM_READ, sfinfo)
+# internals to get the virtual IO interface working
+include("virtualio.jl")
 
+function sf_open(io::T, mode, sfinfo) where T <: IO
+    virtio = SF_VIRTUAL_IO(T)
+    filePtr = ccall((:sf_open_virtual, libsndfile), Ptr{Cvoid},
+                    (Ref{SF_VIRTUAL_IO}, Int32, Ref{SF_INFO}, Ptr{Cvoid}),
+                    virtio, SFM_READ, sfinfo, pointer_from_objref(io))
     if filePtr == C_NULL
         errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Cvoid},), filePtr)
         error("LibSndFile.jl error while loading $fname: ", unsafe_string(errmsg))

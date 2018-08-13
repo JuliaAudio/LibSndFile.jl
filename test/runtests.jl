@@ -20,7 +20,14 @@ include("testhelpers.jl")
 # load_wav(io::String, args...) = LibSndFile.load(File(format"WAV", io), args...)
 # load_wav(io::IO, args...) = LibSndFile.load(Stream(format"WAV", io), args...)
 # also create do-compatible methods of the form:
-# loadstreaming_wav(dofunc::Function, io::IO, args...) = LibSndFile.load(dofunc, Stream(format"WAV", io), args...)
+# function loadstreaming_wav(dofunc::Function, io::IO, args...)
+#     str = LibSndFile.load(dofunc, Stream(format"WAV", io), args...)
+#     try
+#         dofunc(str)
+#     finally
+#         close(str)
+#     end
+# end
 
 for f in (:load, :save, :loadstreaming, :savestreaming)
     for io in ((String, File), (IO, Stream))
@@ -28,8 +35,14 @@ for f in (:load, :save, :loadstreaming, :savestreaming)
             @eval $(Symbol(f, fmt[1]))(io::$(io[1]), args...) =
                 LibSndFile.$f($(io[2])($(fmt[2]), io), args...)
             if f in (:loadstreaming, :savestreaming)
-                @eval $(Symbol(f, fmt[1]))(dofunc::Function, io::$(io[1]), args...) =
-                    LibSndFile.$f(dofunc, $(io[2])($(fmt[2]), io), args...)
+                @eval function $(Symbol(f, fmt[1]))(dofunc::Function, io::$(io[1]), args...)
+                    str = LibSndFile.$f($(io[2])($(fmt[2]), io), args...)
+                    try
+                        dofunc(str)
+                    finally
+                        close(str)
+                    end
+                end
             end
         end
     end
@@ -43,6 +56,7 @@ function gen_reference(srate)
     0.5sin.(phase)
 end
 
+# TODO unindent so we can more easily run individual testsets from Juno
 try
     @testset "LibSndFile Tests" begin
         srate = 44100
@@ -130,22 +144,22 @@ try
             end
         end
 
-        # @testset "Reading from IO Stream" begin
-        #     open(reference_wav) do io
-        #         buf = load(Stream{format"WAV"}(io))
-        #         @test samplerate(buf) == srate
-        #         @test nchannels(buf) == 2
-        #         @test nframes(buf) == 100
-        #         @test isapprox(domain(buf), collect(0:99)/(srate))
-        #         @test mse(buf, reference_buf) < 1e-10
-        #     end
-        #     open(reference_wav) do io
-        #         loadstreaming(Stream{format"WAV"}(io)) do str
-        #             @test nframes(str) == 100
-        #             @test mse(read(str), reference_buf) < 1e-10
-        #         end
-        #     end
-        # end
+        @testset "Reading from IO Stream" begin
+            open(reference_wav) do io
+                buf = load_wav(io)
+                @test samplerate(buf) == srate
+                @test nchannels(buf) == 2
+                @test nframes(buf) == 100
+                @test isapprox(domain(buf), collect(0:99)/(srate))
+                @test mse(buf, reference_buf) < 1e-10
+            end
+            open(reference_wav) do io
+                loadstreaming_wav(io) do str
+                    @test nframes(str) == 100
+                    @test mse(read(str), reference_buf) < 1e-10
+                end
+            end
+        end
 
         @testset "WAV file writing (float64)" begin
             fname = string(tempname(), ".wav")
@@ -287,7 +301,7 @@ try
             io = IOBuffer()
             show(io, stream)
             @test String(take!(io)) == """
-            LibSndFile.SndFileSource{Float32}
+            LibSndFile.SndFileSource{Float32,String}
               path: "$fname"
               channels: 2
               samplerate: 44100Hz
@@ -296,7 +310,7 @@ try
             read(stream, 5000)
             show(io, stream)
             @test String(take!(io)) == """
-            LibSndFile.SndFileSource{Float32}
+            LibSndFile.SndFileSource{Float32,String}
               path: "$fname"
               channels: 2
               samplerate: 44100Hz
