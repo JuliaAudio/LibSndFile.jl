@@ -4,7 +4,20 @@ LibSndFile.jl
 [![Build status](https://ci.appveyor.com/api/projects/status/1wdo413vf375i1vr/branch/master?svg=true)](https://ci.appveyor.com/project/ssfrr/libsndfile-jl/branch/master)
 [![codecov.io](https://codecov.io/github/JuliaAudio/LibSndFile.jl/coverage.svg?branch=master)](https://codecov.io/github/JuliaAudio/LibSndFile.jl?branch=master)
 
-LibSndFile.jl is a wrapper for [libsndfile](http://www.mega-nerd.com/libsndfile/), and supports a wide variety of file and sample formats. The package uses the [FileIO](https://github.com/JuliaIO/FileIO.jl) `load` and `save` interface to automatically figure out the file type of the file to be opened, and the file contents are represented as a `SampleBuf`. For streaming I/O the LibSndFile.jl library also has an `open` method accessible with `LibSndFile.open`, which has a similar interface to `Base.open`. The results are represented as a `SampleSource` (for reading), or a `SampleSink` (for writing). These buffer and stream types are defined in the [SampledSignals](https://github.com/JuliaAudio/SampledSignals.jl) package.
+**Dev Note: The master branch of LibSndFile currently requires the master branch of SampledSignals. Once things stabilize across the JuliaAudio ecosystem we'll tag 1.0-compatible releases of all of the packages.**
+
+LibSndFile.jl is a wrapper for [libsndfile](http://www.mega-nerd.com/libsndfile/), and supports a wide variety of file and sample formats. The package uses the [FileIO](https://github.com/JuliaIO/FileIO.jl) `load` and `save` interface to automatically figure out the file type of the file to be opened, and the file contents are represented as a `SampleBuf`. For streaming I/O we support FileIO's `loadstreaming` and `savestreaming` functions as well. The results are represented as `SampleSource` (for reading), or `SampleSink` (for writing) subtypes. These buffer and stream types are defined in the [SampledSignals](https://github.com/JuliaAudio/SampledSignals.jl) package.
+
+Note that the `load`/`save`/etc. interface is exported from `FileIO`, and `LibSndFile` registers itself when the loaded, so you should bring in both packages. LibSndFile doesn't export any of its own names.
+
+```julia
+julia> using FileIO: load, save, loadstreaming, savestreaming
+julia> import LibSndFile
+julia> load("audiofile.wav")
+2938384-frame, 1-channel SampleBuf{FixedPointNumbers.Fixed{Int16,15}, 2}
+66.63002267573697s sampled at 44100.0Hz
+▆▅▆▆▆▆▆▅▆▆▆▇▇▇▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▇▆▆▆▆▆▇▆▇▆▇▆▆▆▅▆▆▆▆▆▆▅▆▆▅▆▅▆▆▇▇▇▇▆▆▆▆▆▆▇▆▆▆▆▆▆▆▇▆▇▂
+```
 
 ## Examples
 
@@ -58,7 +71,7 @@ end
 
 ## Supported Formats
 
-See the [libsndfile](http://www.mega-nerd.com/libsndfile/) homepage for details, but in summary this library supports reading and writing:
+See the [libsndfile](http://www.mega-nerd.com/libsndfile/) homepage for details, but in summary it supports reading and writing:
 
 * Microsoft WAV
 * Ogg/Vorbis
@@ -80,7 +93,7 @@ See the [libsndfile](http://www.mega-nerd.com/libsndfile/) homepage for details,
 * HMM Tool Kit HTK
 * Apple CAF
 
-Note not all file formats support all samplerates and bit depths.
+Note not all file formats support all samplerates and bit depths. Currently LibSndFile.jl supports WAV, Ogg Vorbis, and FLAC files. Please file an issue if support for other formats would be useful.
 
 ## Related Packages
 
