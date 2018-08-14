@@ -1,1 +1,4 @@
-TestSetExtensions
+FileIO
+Compat
+# for now we manually install in our CI config, because we need master
+# SampledSignals
