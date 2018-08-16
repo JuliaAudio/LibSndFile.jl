@@ -3,6 +3,7 @@ versioninfo()
 
 if VERSION < v"0.7.0-"
     Pkg.clone(pwd(), "LibSndFile")
+    Pkg.build("LibSndFile")
     # for now we need SampledSignals master
     Pkg.checkout("SampledSignals")
 else
