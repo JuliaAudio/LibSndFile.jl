@@ -1,5 +1,5 @@
 using BinDeps
-using Compat.Sys: BINDIR
+using Compat.Sys: BINDIR, isapple, iswindows
 
 @BinDeps.setup
 
@@ -11,12 +11,12 @@ libsndfile = library_dependency("libsndfile", aliases=["libsndfile-1"])
 provides(AptGet, "libsndfile1-dev", libsndfile)
 provides(Pacman, "libsndfile", libsndfile)
 
-@static if is_apple()
+@static if isapple()
     using Homebrew
     provides(Homebrew.HB, "libsndfile", libsndfile)
 end
 
-@static if is_windows()
+@static if iswindows()
     using WinRPM
     provides(WinRPM.RPM, "libsndfile1", libsndfile, os = :Windows)
 end

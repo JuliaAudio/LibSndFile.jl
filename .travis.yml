@@ -1,27 +1,17 @@
 # Documentation: http://docs.travis-ci.com/user/languages/julia/
 language: julia
-# os:
-#   - linux
-#   - osx
-# julia:
-#   - 0.6
-#   - 0.7
-# for now we depend on SampledSignals master. Once it's tagged we can remove
-# this logic.
+os:
+  - linux
+  - osx
+julia:
+  - 0.6
+  - 0.7
+  - 1.0
+  - nightly
 matrix:
-  include:
-    - julia: 0.6
-      os: linux
-      env: UPDATECMD='Pkg.add("SampledSignals"); Pkg.checkout("SampledSignals")'
-    - julia: 0.7
-      os: linux
-      env: UPDATECMD='using Pkg; Pkg.add(PackageSpec(name="SampledSignals", rev="master"))'
-    - julia: 0.6
-      os: osx
-      env: UPDATECMD='Pkg.add("SampledSignals"); Pkg.checkout("SampledSignals")'
-    - julia: 0.7
-      os: osx
-      env: UPDATECMD='using Pkg; Pkg.add(PackageSpec(name="SampledSignals", rev="master"))'
+  allow_failures:
+    - julia: nightly
+  fast_finish: true
 branches:
   only:
     master
@@ -29,7 +19,11 @@ notifications:
   email: false
 script:
  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
- - julia -e "$UPDATECMD"
- - julia -e 'Pkg.clone(pwd()); Pkg.build("LibSndFile"); Pkg.test("LibSndFile"; coverage=true)'
+ - julia --color=yes ci_setup.jl
+ - julia --color=yes --code-coverage test/runtests.jl
 after_success:
-  - julia -e 'cd(Pkg.dir("LibSndFile")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'
+  - julia -e 'VERSION >= v"0.7.0-" && using Pkg;
+        VERSION < v"0.7.0-" && cd(Pkg.dir("LibSndFile"));
+        Pkg.add("Coverage");
+        using Coverage;
+        Codecov.submit(process_folder())'

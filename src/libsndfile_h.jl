@@ -137,7 +137,7 @@ include("virtualio.jl")
 function sf_open(io::T, mode, sfinfo) where T <: IO
     virtio = SF_VIRTUAL_IO(T)
     filePtr = ccall((:sf_open_virtual, libsndfile), Ptr{Cvoid},
-                    (Ref{SF_VIRTUAL_IO}, Int32, Ref{SF_INFO}, Ptr{Cvoid}),
+                    (Ref{SF_VIRTUAL_IO}, Int32, Ref{SF_INFO}, Ptr{T}),
                     virtio, mode, sfinfo, pointer_from_objref(io))
     if filePtr == C_NULL
         error("LibSndFile.jl error while opening stream: ", sf_strerror(C_NULL))

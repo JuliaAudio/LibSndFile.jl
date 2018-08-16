@@ -1,25 +1,23 @@
 environment:
   matrix:
-  # there's some sort of weird indexing issue on 32-bit systems, so for now
-  # we'll just concede defeat and at least make sure we keep passing on 64-bit
-  # windows
-  # - JULIA_URL: "https://julialang-s3.julialang.org/bin/winnt/x86/0.6/julia-0.6-latest-win32.exe"
+# disable win32 testing until LibSndFile is fixed on 32-bit
+#  - JULIA_URL: "https://julialang-s3.julialang.org/bin/winnt/x86/0.6/julia-0.6-latest-win32.exe"
   - JULIA_URL: "https://julialang-s3.julialang.org/bin/winnt/x64/0.6/julia-0.6-latest-win64.exe"
-    UPDATE_CMD: 'Pkg.add(\"SampledSignals\"); Pkg.checkout(\"SampledSignals\")'
-  # - JULIA_URL: "https://julialang-s3.julialang.org/bin/winnt/x86/0.7/julia-0.7-latest-win32.exe"
+#  - JULIA_URL: "https://julialang-s3.julialang.org/bin/winnt/x86/0.7/julia-0.7-latest-win32.exe"
   - JULIA_URL: "https://julialang-s3.julialang.org/bin/winnt/x64/0.7/julia-0.7-latest-win64.exe"
-    UPDATE_CMD: 'using Pkg; Pkg.add(PackageSpec(name=\"SampledSignals\", rev=\"master\"))'
-
-# only build master and PRs
-branches:
-  only:
-    - master
+#  - JULIA_URL: "https://julialang-s3.julialang.org/bin/winnt/x86/1.0/julia-1.0-latest-win32.exe"
+  - JULIA_URL: "https://julialang-s3.julialang.org/bin/winnt/x64/1.0/julia-1.0-latest-win64.exe"
 
 notifications:
   - provider: Email
     on_build_success: false
     on_build_failure: false
     on_build_status_changed: false
+
+# only build master and PRs
+branches:
+  only:
+    - master
 
 install:
   - ps: "[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12"
@@ -33,8 +31,8 @@ install:
 build_script:
 # Need to convert from shallow to complete for Pkg.clone to work
   - IF EXIST .git\shallow (git fetch --unshallow)
-  - C:\projects\julia\bin\julia -e "%UPDATE_CMD%"
-  - C:\projects\julia\bin\julia -e "versioninfo(); Pkg.clone(pwd(), \"LibSndFile\"); Pkg.build(\"LibSndFile\")"
+  - C:\projects\julia\bin\julia --color=yes ci_setup.jl
 
 test_script:
-  - C:\projects\julia\bin\julia --check-bounds=yes -e "Pkg.test(\"LibSndFile\")"
+  # - C:\projects\julia\bin\julia --check-bounds=yes -e "Pkg.test(\"SampledSignals\")"
+  - C:\projects\julia\bin\julia --color=yes --code-coverage --check-bounds=yes test/runtests.jl
