@@ -8,7 +8,9 @@ if VERSION < v"0.7.0-"
     Pkg.checkout("SampledSignals")
 else
     using Pkg
-    Pkg.add(PackageSpec(path=pwd(), name="LibSndFile"))
+    # for now we need to `clone` because there's no way to specify the
+    # package name for `add`
+    Pkg.clone(pwd(), "LibSndFile")
     Pkg.add(PackageSpec(name="SampledSignals", rev="master"))
 end
 # manually install test dependencies so we can run the test script directly, which avoids
