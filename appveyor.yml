@@ -8,6 +8,11 @@ environment:
 #  - JULIA_URL: "https://julialang-s3.julialang.org/bin/winnt/x86/1.0/julia-1.0-latest-win32.exe"
   - JULIA_URL: "https://julialang-s3.julialang.org/bin/winnt/x64/1.0/julia-1.0-latest-win64.exe"
 
+matrix:
+  allow_failures:
+    # currently failing on 1.0 until https://github.com/JuliaLang/METADATA.jl/pull/16370 is merged
+    - JULIA_URL: "https://julialang-s3.julialang.org/bin/winnt/x64/1.0/julia-1.0-latest-win64.exe"
+
 notifications:
   - provider: Email
     on_build_success: false
