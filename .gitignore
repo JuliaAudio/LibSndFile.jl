@@ -2,5 +2,6 @@
 *.so
 *.o
 deps/deps.jl
+deps/build.log
 *.cov
 coverage
