@@ -62,7 +62,8 @@ function savestreaming(src::Union{File{T}, Stream{T}}, nchannels, samplerate, el
 end
 
 for T in (:File, :Stream), fmt in supported_formats
-    @eval @inline save(src::$T{$fmt}, args...) = save_helper(src, args...)
+    @eval @inline save(src::$T{$fmt}, args...; kwargs...) =
+        save_helper(src, args...; kwargs...)
 end
 
 function save_helper(src, buf::SampleBuf)
@@ -80,4 +81,14 @@ function save_helper(src, buf::SampleBuf)
     end
 
     nothing
+end
+
+function save_helper(src, buf::AbstractArray; samplerate=nothing)
+    if samplerate === nothing
+        throw(ArgumentError(string(
+            "Can't save `Array` with unknown samplerate. ",
+            "Specify the `samplerate` keyword argument or ",
+            "use a SampleBuf")))
+    end
+    save_helper(src, SampleBuf(buf, samplerate=samplerate))
 end
