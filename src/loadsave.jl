@@ -90,5 +90,5 @@ function save_helper(src, buf::AbstractArray; samplerate=nothing)
             "Specify the `samplerate` keyword argument or ",
             "use a SampleBuf")))
     end
-    save_helper(src, SampleBuf(buf, samplerate=samplerate))
+    save_helper(src, SampleBuf(buf, samplerate))
 end
