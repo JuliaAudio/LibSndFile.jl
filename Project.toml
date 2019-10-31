@@ -1,0 +1,25 @@
+name = "LibSndFile"
+uuid = "b13ce0c6-77b0-50c6-a2db-140568b8d1a5"
+
+[deps]
+FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+SampledSignals = "bd7594eb-a658-542f-9e75-4c4d8908c167"
+WinRPM = "c17dfb99-b4f7-5aad-8812-456da1ad7187"
+libsndfile_jll = "5bf562c0-5a39-5b4f-b979-f64ac885830c"
+libvorbis_jll = "f27f6e37-5d2b-51aa-960f-b287f2bc3b7a"
+
+[compat]
+FileIO = "1"
+SampledSignals = "2"
+julia = "1.3"
+
+[extras]
+Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
+FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
+SampledSignals = "bd7594eb-a658-542f-9e75-4c4d8908c167"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["FileIO", "SampledSignals", "Compat", "Test"]
