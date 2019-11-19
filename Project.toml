@@ -11,7 +11,7 @@ WinRPM = "c17dfb99-b4f7-5aad-8812-456da1ad7187"
 
 [compat]
 FileIO = "1"
-SampledSignals = "2"
+SampledSignals = "2.1.0"
 julia = "1"
 
 [extras]
