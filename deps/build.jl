@@ -1,6 +1,3 @@
-using Pkg
-Pkg.add("BinDeps")
-
 using BinDeps
 
 @BinDeps.setup

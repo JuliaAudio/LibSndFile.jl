@@ -2,6 +2,7 @@ name = "LibSndFile"
 uuid = "b13ce0c6-77b0-50c6-a2db-140568b8d1a5"
 
 [deps]
+BinDeps = "9e28174c-4ba2-5203-b857-d8d62c4213ee"
 FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
