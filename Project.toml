@@ -1,5 +1,6 @@
 name = "LibSndFile"
 uuid = "b13ce0c6-77b0-50c6-a2db-140568b8d1a5"
+version = "2.1.0"
 
 [deps]
 BinDeps = "9e28174c-4ba2-5203-b857-d8d62c4213ee"
@@ -15,6 +16,9 @@ WinRPM = "c17dfb99-b4f7-5aad-8812-456da1ad7187"
 FileIO = "1"
 SampledSignals = "2.1.0"
 julia = "1"
+BinDeps = "0.8"
+Homebrew = "0.7"
+WinRPM = "0.4"
 
 [extras]
 Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
