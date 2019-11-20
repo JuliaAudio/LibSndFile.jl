@@ -3,7 +3,7 @@
 # we can pass a pointer into the C code
 mutable struct LengthIO{T<:IO} <: IO
     io::T
-    length::Int
+    length::Int64
 end
 
 Base.length(io::LengthIO) = io.length
