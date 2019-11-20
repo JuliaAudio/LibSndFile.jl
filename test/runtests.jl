@@ -1,7 +1,6 @@
 #!/usr/bin/env julia
 
 using Test
-
 using FileIO: File, Stream, @format_str
 import FileIO
 import LibSndFile
