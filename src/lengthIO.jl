@@ -6,6 +6,8 @@ mutable struct LengthIO{T<:IO} <: IO
     length::Int64
 end
 
+LengthIO(io, l::Integer) = LengthIO(io, Int64(l))
+
 Base.length(io::LengthIO) = io.length
 for f in (:read, :read!, :write, :readbytes!,
           :unsafe_read, :unsafe_write,
