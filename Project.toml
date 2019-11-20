@@ -19,12 +19,3 @@ julia = "1"
 BinDeps = "0.8"
 Homebrew = "0.7"
 WinRPM = "0.4"
-
-[extras]
-Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
-FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
-SampledSignals = "bd7594eb-a658-542f-9e75-4c4d8908c167"
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-[targets]
-test = ["FileIO", "SampledSignals", "Compat", "Test"]
