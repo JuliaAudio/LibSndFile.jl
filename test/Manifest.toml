@@ -97,7 +97,7 @@ uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
 deps = ["FileIO", "Libdl", "LinearAlgebra", "Printf", "SampledSignals", "libsndfile_jll"]
 path = "/home/sfr/Dropbox/juliadev/LibSndFile"
 uuid = "b13ce0c6-77b0-50c6-a2db-140568b8d1a5"
-version = "2.1.0"
+version = "2.2.0"
 
 [[Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
