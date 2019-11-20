@@ -119,10 +119,19 @@ end
 
 SF_INFO() = SF_INFO(0, 0, 0, 0, 0, 0)
 
+"""
+Call the given expression in a separate thread, waiting on the result. This is
+useful when running code that would otherwise block the Julia process (like a
+`ccall` into a function that does IO).
+"""
+macro tcall(ex)
+    :(fetch(Base.Threads.@spawn $(esc(ex))))
+end
+
 function sf_open(fname::String, mode, sfinfo)
-    filePtr = ccall((:sf_open, libsndfile), Ptr{Cvoid},
-                    (Cstring, Int32, Ref{SF_INFO}),
-                    fname, mode, sfinfo)
+    filePtr = @tcall ccall((:sf_open, libsndfile), Ptr{Cvoid},
+                           (Cstring, Int32, Ref{SF_INFO}),
+                           fname, mode, sfinfo)
 
     if filePtr == C_NULL
         error("LibSndFile.jl error while opening $fname: ", sf_strerror(C_NULL))
@@ -136,9 +145,9 @@ include("virtualio.jl")
 
 function sf_open(io::T, mode, sfinfo) where T <: IO
     virtio = SF_VIRTUAL_IO(T)
-    filePtr = ccall((:sf_open_virtual, libsndfile), Ptr{Cvoid},
-                    (Ref{SF_VIRTUAL_IO}, Int32, Ref{SF_INFO}, Ptr{T}),
-                    virtio, mode, sfinfo, pointer_from_objref(io))
+    filePtr = @tcall ccall((:sf_open_virtual, libsndfile), Ptr{Cvoid},
+                           (Ref{SF_VIRTUAL_IO}, Int32, Ref{SF_INFO}, Ptr{T}),
+                           virtio, mode, sfinfo, pointer_from_objref(io))
     if filePtr == C_NULL
         error("LibSndFile.jl error while opening stream: ", sf_strerror(C_NULL))
     end
@@ -147,7 +156,7 @@ function sf_open(io::T, mode, sfinfo) where T <: IO
 end
 
 function sf_close(filePtr)
-    err = ccall((:sf_close, libsndfile), Int32, (Ptr{Cvoid},), filePtr)
+    err = @tcall ccall((:sf_close, libsndfile), Int32, (Ptr{Cvoid},), filePtr)
     if err != 0
         error("LibSndFile.jl error: Failed to close file: ", sf_strerror(filePtr))
     end
@@ -160,24 +169,24 @@ of frames into the given array. Returns the number of frames read.
 function sf_readf end
 
 sf_readf(filePtr, dest::Array{T}, nframes) where T <: Union{Int16, PCM16Sample} =
-    ccall((:sf_readf_short, libsndfile), Int64,
-        (Ptr{Cvoid}, Ptr{T}, Int64),
-        filePtr, dest, nframes)
+    @tcall ccall((:sf_readf_short, libsndfile), Int64,
+                 (Ptr{Cvoid}, Ref{T}, Int64),
+                 filePtr, dest, nframes)
 
 sf_readf(filePtr, dest::Array{T}, nframes) where T <: Union{Int32, PCM32Sample} =
-    ccall((:sf_readf_int, libsndfile), Int64,
-        (Ptr{Cvoid}, Ptr{T}, Int64),
-        filePtr, dest, nframes)
+    @tcall ccall((:sf_readf_int, libsndfile), Int64,
+                 (Ptr{Cvoid}, Ref{T}, Int64),
+                 filePtr, dest, nframes)
 
 sf_readf(filePtr, dest::Array{Float32}, nframes) =
-    ccall((:sf_readf_float, libsndfile), Int64,
-        (Ptr{Cvoid}, Ptr{Float32}, Int64),
-        filePtr, dest, nframes)
+    @tcall ccall((:sf_readf_float, libsndfile), Int64,
+                 (Ptr{Cvoid}, Ref{Float32}, Int64),
+                 filePtr, dest, nframes)
 
 sf_readf(filePtr, dest::Array{Float64}, nframes) =
-    ccall((:sf_readf_double, libsndfile), Int64,
-        (Ptr{Cvoid}, Ptr{Float64}, Int64),
-        filePtr, dest, nframes)
+    @tcall ccall((:sf_readf_double, libsndfile), Int64,
+                 (Ptr{Cvoid}, Ref{Float64}, Int64),
+                 filePtr, dest, nframes)
 
 """
 Wrappers for the family of sf_writef_* functions, which write the given number
@@ -186,26 +195,27 @@ of frames into the given array. Returns the number of frames written.
 function sf_writef end
 
 sf_writef(filePtr, src::Array{T}, nframes) where T <: Union{Int16, PCM16Sample} =
-    ccall((:sf_writef_short, libsndfile), Int64,
-                (Ptr{Cvoid}, Ptr{T}, Int64),
-                filePtr, src, nframes)
+    @tcall ccall((:sf_writef_short, libsndfile), Int64,
+                 (Ptr{Cvoid}, Ref{T}, Int64),
+                 filePtr, src, nframes)
 
 sf_writef(filePtr, src::Array{T}, nframes) where T <: Union{Int32, PCM32Sample} =
-    ccall((:sf_writef_int, libsndfile), Int64,
-                (Ptr{Cvoid}, Ptr{T}, Int64),
-                filePtr, src, nframes)
+    @tcall ccall((:sf_writef_int, libsndfile), Int64,
+                 (Ptr{Cvoid}, Ref{T}, Int64),
+                 filePtr, src, nframes)
 
 sf_writef(filePtr, src::Array{Float32}, nframes) =
-    ccall((:sf_writef_float, libsndfile), Int64,
-                (Ptr{Cvoid}, Ptr{Float32}, Int64),
-                filePtr, src, nframes)
+    @tcall ccall((:sf_writef_float, libsndfile), Int64,
+                 (Ptr{Cvoid}, Ref{Float32}, Int64),
+                 filePtr, src, nframes)
 
 sf_writef(filePtr, src::Array{Float64}, nframes) =
-    ccall((:sf_writef_double, libsndfile), Int64,
-                (Ptr{Cvoid}, Ptr{Float64}, Int64),
-                filePtr, src, nframes)
+    @tcall ccall((:sf_writef_double, libsndfile), Int64,
+                 (Ptr{Cvoid}, Ref{Float64}, Int64),
+                 filePtr, src, nframes)
 
 function sf_strerror(filePtr)
-    errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Cvoid},), filePtr)
+    errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8},
+                   (Ref{Cvoid},), filePtr)
     unsafe_string(errmsg)
 end
