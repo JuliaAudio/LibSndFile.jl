@@ -11,7 +11,7 @@ function SndFileSource(src, filePtr, sfinfo, bufsize=4096)
     T = fmt_to_type(sfinfo.format)
     readbuf = zeros(T, sfinfo.channels, bufsize)
 
-    SndFileSource(src, filePtr, sfinfo, 1, readbuf)
+    SndFileSource(src, filePtr, sfinfo, Int64(1), readbuf)
 end
 
 mutable struct SndFileSink{T, S<:Union{String, LengthIO}} <: SampleSink
@@ -25,7 +25,7 @@ end
 function SndFileSink(src, filePtr, sfinfo, bufsize=4096)
     T = fmt_to_type(sfinfo.format)
     writebuf = zeros(T, sfinfo.channels, bufsize)
-    SndFileSink(src, filePtr, sfinfo, 0, writebuf)
+    SndFileSink(src, filePtr, sfinfo, Int64(0), writebuf)
 end
 
 const SndFileStream{T, S} = Union{SndFileSource{T, S}, SndFileSink{T, S}}

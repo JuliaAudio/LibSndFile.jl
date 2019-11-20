@@ -4,7 +4,11 @@ function SampledSignals.unsafe_read!(source::SndFileSource, buf::Array, frameoff
     readbuf = source.readbuf
     while nread < total
         n = min(size(readbuf, 2), total - nread)
-        nr = sf_readf(source.filePtr, readbuf, n)
+        # transpose! needs the ranges to all use Ints, which on 32-bit systems
+        # is an Int32, but sf_writef returns Int64 on both platforms, so we
+        # convert to a platform-native Int. This also avoids a
+        # type-inferrability problem where `nw` would otherwise change type.
+        nr::Int = sf_readf(source.filePtr, readbuf, n)
         # the data comes in interleaved, so we need to transpose
         transpose!(view(buf, (1:nr) .+ frameoffset .+ nread, :),
                    view(readbuf, :, 1:nr))
@@ -25,7 +29,11 @@ function SampledSignals.unsafe_write(sink::SndFileSink, buf::Array, frameoffset,
         # the data needs to be interleaved, so we need to transpose
         transpose!(view(writebuf, :, 1:n),
                    view(buf, (1:n) .+ frameoffset .+ nwritten, :))
-        nw = sf_writef(sink.filePtr, writebuf, n)
+        # transpose! needs the ranges to all use Ints, which on 32-bit systems
+        # is an Int32, but sf_writef returns Int64 on both platforms, so we
+        # convert to a platform-native Int. This also avoids a
+        # type-inferrability problem where `nw` would otherwise change type.
+        nw::Int = sf_writef(sink.filePtr, writebuf, n)
         sink.nframes += nw
         nwritten += nw
         nw == n || break

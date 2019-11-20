@@ -1,16 +1,8 @@
 #!/usr/bin/env julia
 
-using Compat
-if VERSION >= v"0.7-rc2"
-    using Test
-else
-    using Base.Test
-end
-
-#using FileIO: load, save, loadstreaming, savestreaming
+using Test
 using FileIO: File, Stream, @format_str
 import FileIO
-# using LibSndFile: load, save, loadstreaming, savestreaming
 import LibSndFile
 using SampledSignals
 
