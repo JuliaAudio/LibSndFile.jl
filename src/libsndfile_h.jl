@@ -209,3 +209,8 @@ function sf_strerror(filePtr)
     errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Cvoid},), filePtr)
     unsafe_string(errmsg)
 end
+
+sf_seek(filePtr, frames::sf_count_t, whence::Integer) =
+    ccall((:sf_seek, libsndfile), Int64,
+                (Ptr{Cvoid}, Int64, Int32),
+                filePtr, frames, whence)
