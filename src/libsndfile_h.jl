@@ -181,7 +181,7 @@ sf_readf(filePtr, dest::Array{Float64}, nframes) =
 
 """
 Wrappers for the family of sf_writef_* functions, which write the given number
-of frames into the given array. Returns the number of frames written.
+of frames in the source array to the file. Returns the number of frames written.
 """
 function sf_writef end
 
