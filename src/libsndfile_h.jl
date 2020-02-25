@@ -168,22 +168,22 @@ of frames into the given array. Returns the number of frames read.
 """
 function sf_readf end
 
-sf_readf(filePtr, dest::Array{T}, nframes) where T <: Union{Int16, PCM16Sample} =
+sf_readf(filePtr, dest::Array{T}, nframes=nframes(dest)) where T <: Union{Int16, PCM16Sample} =
     @tcall ccall((:sf_readf_short, libsndfile), Int64,
                  (Ptr{Cvoid}, Ref{T}, Int64),
                  filePtr, dest, nframes)
 
-sf_readf(filePtr, dest::Array{T}, nframes) where T <: Union{Int32, PCM32Sample} =
+sf_readf(filePtr, dest::Array{T}, nframes=nframes(dest)) where T <: Union{Int32, PCM32Sample} =
     @tcall ccall((:sf_readf_int, libsndfile), Int64,
                  (Ptr{Cvoid}, Ref{T}, Int64),
                  filePtr, dest, nframes)
 
-sf_readf(filePtr, dest::Array{Float32}, nframes) =
+sf_readf(filePtr, dest::Array{Float32}, nframes=nframes(dest)) =
     @tcall ccall((:sf_readf_float, libsndfile), Int64,
                  (Ptr{Cvoid}, Ref{Float32}, Int64),
                  filePtr, dest, nframes)
 
-sf_readf(filePtr, dest::Array{Float64}, nframes) =
+sf_readf(filePtr, dest::Array{Float64}, nframes=nframes(dest)) =
     @tcall ccall((:sf_readf_double, libsndfile), Int64,
                  (Ptr{Cvoid}, Ref{Float64}, Int64),
                  filePtr, dest, nframes)
@@ -194,22 +194,22 @@ of frames into the given array. Returns the number of frames written.
 """
 function sf_writef end
 
-sf_writef(filePtr, src::Array{T}, nframes) where T <: Union{Int16, PCM16Sample} =
+sf_writef(filePtr, src::Array{T}, nframes=nframes(src)) where T <: Union{Int16, PCM16Sample} =
     @tcall ccall((:sf_writef_short, libsndfile), Int64,
                  (Ptr{Cvoid}, Ref{T}, Int64),
                  filePtr, src, nframes)
 
-sf_writef(filePtr, src::Array{T}, nframes) where T <: Union{Int32, PCM32Sample} =
+sf_writef(filePtr, src::Array{T}, nframes=nframes(src)) where T <: Union{Int32, PCM32Sample} =
     @tcall ccall((:sf_writef_int, libsndfile), Int64,
                  (Ptr{Cvoid}, Ref{T}, Int64),
                  filePtr, src, nframes)
 
-sf_writef(filePtr, src::Array{Float32}, nframes) =
+sf_writef(filePtr, src::Array{Float32}, nframes=nframes(src)) =
     @tcall ccall((:sf_writef_float, libsndfile), Int64,
                  (Ptr{Cvoid}, Ref{Float32}, Int64),
                  filePtr, src, nframes)
 
-sf_writef(filePtr, src::Array{Float64}, nframes) =
+sf_writef(filePtr, src::Array{Float64}, nframes=nframes(src)) =
     @tcall ccall((:sf_writef_double, libsndfile), Int64,
                  (Ptr{Cvoid}, Ref{Float64}, Int64),
                  filePtr, src, nframes)

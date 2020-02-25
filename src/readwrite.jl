@@ -1,23 +1,45 @@
-function SampledSignals.unsafe_read!(source::SndFileSource, buf::Array, frameoffset, framecount)
-    total = min(framecount, nframes(source) - source.pos + 1)
+"""
+    read!(src::SndFileSource, buf::AbstractArray)
+
+Read frames of audio from `src` into `buf`. Returns the number of frames read. A
+frame is a sample in time across all channels.
+"""
+function Base.read!(source::SndFileSource, buf::Array)
+    # when given a regular array we can just read directly into it
+    if nchannels(source) != nchannels(buf)
+        throw(ArgumentError(
+            "Tried to read $(nchannels(source))-channel source into $(nchannels(buf))-channel array"))
+    end
+    nr = sf_readf(source.filePtr, readbuf)
+    source.pos += nr
+
+    Int(nr)
+end
+
+# for other types of AbstractArray we read into our temp buffer and then copy
+function Base.read!(source::SndFileSource, buf::AbstractArray)
+    total = min(nframes(buf), nframes(source) - source.pos + 1)
     nread = 0
     readbuf = source.readbuf
+    ridxs = CartesianIndices(readbuf)
     while nread < total
-        n = min(size(readbuf, 2), total - nread)
-        # transpose! needs the ranges to all use Ints, which on 32-bit systems
-        # is an Int32, but sf_writef returns Int64 on both platforms, so we
-        # convert to a platform-native Int. This also avoids a
-        # type-inferrability problem where `nw` would otherwise change type.
-        nr::Int = sf_readf(source.filePtr, readbuf, n)
-        # the data comes in interleaved, so we need to transpose
-        transpose!(view(buf, (1:nr) .+ frameoffset .+ nread, :),
-                   view(readbuf, :, 1:nr))
-        source.pos += nr
+        nr = read!(source, readbuf)
+        copyto!(buf, ridxs .+ CartesianIndex((0,nread)), readbuf, ridxs)
         nread += nr
-        nr == n || break
+        nr == nframes(readbuf) || break # abort if we receive fewer frames than we expected
     end
 
     nread
+end
+
+function Base.read(source::SndFileSource, nframes)
+    buf = zeros(eltype(source), nchannels(source), nframes)
+    nr = read!(source, buf)
+    if nr < nframes
+        resize!(buf, size(buf, 1), nr)
+    end
+
+    buf
 end
 
 # returns the number of samples written

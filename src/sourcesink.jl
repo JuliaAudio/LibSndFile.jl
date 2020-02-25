@@ -1,5 +1,5 @@
 # src is either a string representing the path to the file, or an IO stream
-mutable struct SndFileSource{T, S<:Union{String, LengthIO}} <: SampleSource
+mutable struct SndFileSource{T, S<:Union{String, LengthIO}}
     src::S
     filePtr::Ptr{Cvoid}
     sfinfo::SF_INFO
@@ -14,7 +14,7 @@ function SndFileSource(src, filePtr, sfinfo, bufsize=4096)
     SndFileSource(src, filePtr, sfinfo, Int64(1), readbuf)
 end
 
-mutable struct SndFileSink{T, S<:Union{String, LengthIO}} <: SampleSink
+mutable struct SndFileSink{T, S<:Union{String, LengthIO}}
     src::S # the stream or filename used to create this
     filePtr::Ptr{Cvoid}
     sfinfo::SF_INFO
@@ -30,12 +30,12 @@ end
 
 const SndFileStream{T, S} = Union{SndFileSource{T, S}, SndFileSink{T, S}}
 
-SampledSignals.nchannels(str::SndFileStream) = Int(str.sfinfo.channels)
-SampledSignals.samplerate(str::SndFileStream) = str.sfinfo.samplerate
+nchannels(str::SndFileStream) = Int(str.sfinfo.channels)
+samplerate(str::SndFileStream) = str.sfinfo.samplerate
 Base.eltype(str::SndFileStream{T, S}) where {T, S} = T
 
-SampledSignals.nframes(sink::SndFileSink) = sink.nframes
-SampledSignals.nframes(source::SndFileSource) = source.sfinfo.frames
+nframes(sink::SndFileSink) = sink.nframes
+nframes(source::SndFileSource) = source.sfinfo.frames
 
 function Base.close(s::SndFileStream)
     if s.filePtr != C_NULL
