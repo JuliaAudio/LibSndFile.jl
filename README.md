@@ -48,22 +48,25 @@ plot(domain(x), x[:, 1]) # plots with time on the x axis
 ```julia
 x = load("myfile.wav")
 f = fft(x) # returns a FrequencySampleBuf
-plot(domain(x), x[:, 1]) # plots with frequency on the x axis
+fmin = 0Hz
+fmax = 10000Hz
+fs = Float32[float(f_i) for f_i in domain(f[fmin..fmax])]
+plot(fs, abs.(f[fmin..fmax]).data, xlim=(fs[1],fs[end]), ylim=(0,20000))
 ```
 
 **Load a long file as a stream and plot the left channel from 2s to 3s**
 ```julia
-s = loadstream("myfile.ogg")
-x = read(s, 4s)[2s..3s, 1]
-close(s)
+stream = loadstreaming("myfile.ogg")
+x = read(stream, 4s)[2s..3s, 1]
+close(stream)
 plot(domain(x), x)
 ```
 
 **To handle closing the file automatically (including in the case of unexpected exceptions), we support the `do` block syntax**
 
 ```julia
-data = loadstream("data/never_gonna_give_you_up.ogg") do s
-    readall(f)
+data = loadstreaming("data/never_gonna_give_you_up.ogg") do f
+    read(f)
 end
 ```
 

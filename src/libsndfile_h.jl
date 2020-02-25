@@ -181,7 +181,7 @@ sf_readf(filePtr, dest::Array{Float64}, nframes) =
 
 """
 Wrappers for the family of sf_writef_* functions, which write the given number
-of frames into the given array. Returns the number of frames written.
+of frames in the source array to the file. Returns the number of frames written.
 """
 function sf_writef end
 
@@ -209,3 +209,8 @@ function sf_strerror(filePtr)
     errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Cvoid},), filePtr)
     unsafe_string(errmsg)
 end
+
+sf_seek(filePtr, frames::sf_count_t, whence::Integer) =
+    ccall((:sf_seek, libsndfile), Int64,
+                (Ptr{Cvoid}, Int64, Int32),
+                filePtr, frames, whence)

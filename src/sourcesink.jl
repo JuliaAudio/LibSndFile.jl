@@ -59,18 +59,21 @@ function Base.show(io::IO, s::SndFileStream)
     @printf(io, "            %0.2f of %0.2f seconds", postime, endtime)
 end
 
-#
-# function Base.seek(file::AudioFile, offset::Integer, whence::Integer)
-#     new_offset = ccall((:sf_seek, libsndfile), Int64,
-#         (Ptr{Cvoid}, Int64, Int32), file.filePtr, offset, whence)
-#
-#     if new_offset < 0
-#         error("Could not seek to $(offset) in file")
-#     end
-#
-#     new_offset
-# end
-#
-# # Some convenience methods for easily navigating through a sound file
-# Base.seek(file::AudioFile, offset::Integer) = seek(file, offset, SF_SEEK_SET)
-# rewind(file::AudioFile) = seek(file, 0, SF_SEEK_SET)
+
+function _seek(source::SndFileSource, offset::Integer, whence::Integer)
+    new_offset = sf_seek(source.filePtr, offset, whence)
+
+    if new_offset < 0
+        error("Could not seek to $(offset) in file")
+    else
+        # switch to one-indexing
+        source.pos = new_offset + 1
+    end
+
+    new_offset
+end
+
+# Some convenience methods for easily navigating through a sound file
+Base.seek(source::SndFileSource, offset::Integer) = _seek(source, offset-1, SF_SEEK_SET)
+Base.skip(source::SndFileSource, offset::Integer) = _seek(source, offset, SF_SEEK_CUR)
+Base.position(source::SndFileSource) = source.pos
