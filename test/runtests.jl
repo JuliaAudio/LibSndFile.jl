@@ -116,6 +116,7 @@ end
 @testset "Streaming reading" begin
     str = loadstreaming_wav(reference_wav)
     @test nframes(str) == 100
+    @test position(str) == 1
     @test mse(read(str, 50), reference_buf[1:50, :]) < 1e-10
     @test mse(read(str, 50), reference_buf[51:100, :]) < 1e-10
     close(str)
@@ -128,6 +129,20 @@ end
     loadstreaming_wav(reference_wav) do str
         @test mse(read(str), reference_buf) < 1e-10
     end
+
+    # seeking
+    loadstreaming_wav(reference_wav) do str
+        seek(str, 22)
+        @test mse(read(str), reference_buf[22:end, :]) < 1e-10
+    end
+
+    # skipping
+    loadstreaming_wav(reference_wav) do str
+        seek(str, 22)
+        skip(str, 10)
+        @test mse(read(str), reference_buf[32:end, :]) < 1e-10
+    end
+
 end
 
 @testset "Reading from IO Stream" begin

@@ -60,17 +60,20 @@ function Base.show(io::IO, s::SndFileStream)
 end
 
 
-function Base.seek(source::SndFileSource, offset::Integer, whence::Integer)
+function _seek(source::SndFileSource, offset::Integer, whence::Integer)
     new_offset = sf_seek(source.filePtr, offset, whence)
 
     if new_offset < 0
         error("Could not seek to $(offset) in file")
     else
-        source.pos = new_offset
+        # switch to one-indexing
+        source.pos = new_offset + 1
     end
 
     new_offset
 end
 
 # Some convenience methods for easily navigating through a sound file
-Base.seek(source::SndFileSource, offset::Integer) = seek(source, offset, SF_SEEK_SET)
+Base.seek(source::SndFileSource, offset::Integer) = _seek(source, offset-1, SF_SEEK_SET)
+Base.skip(source::SndFileSource, offset::Integer) = _seek(source, offset, SF_SEEK_CUR)
+Base.position(source::SndFileSource) = source.pos
