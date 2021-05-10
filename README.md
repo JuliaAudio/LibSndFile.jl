@@ -6,7 +6,7 @@ LibSndFile.jl
 
 LibSndFile.jl is a wrapper for [libsndfile](http://www.mega-nerd.com/libsndfile/), and supports a wide variety of file and sample formats. The package uses the [FileIO](https://github.com/JuliaIO/FileIO.jl) `load` and `save` interface to automatically figure out the file type of the file to be opened, and the file contents are represented as a `SampleBuf`. For streaming I/O we support FileIO's `loadstreaming` and `savestreaming` functions as well. The results are represented as `SampleSource` (for reading), or `SampleSink` (for writing) subtypes. These buffer and stream types are defined in the [SampledSignals](https://github.com/JuliaAudio/SampledSignals.jl) package.
 
-Note that the `load`/`save`/etc. interface is exported from `FileIO`, and `LibSndFile` registers itself when the loaded, so you should bring in both packages. LibSndFile doesn't export any of its own names.
+Note that the `load`/`save`/etc. interface is exported from `FileIO`, and `LibSndFile` registers itself when the loaded, so you should bring in both packages. LibSndFile doesn't export any of its own names. 
 
 ```julia
 julia> using FileIO: load, save, loadstreaming, savestreaming
