@@ -26,10 +26,10 @@ for f in (:load, :save, :loadstreaming, :savestreaming)
     for io in ((String, File), (IO, Stream))
         for fmt in (("_wav", format"WAV"), ("_ogg", format"OGG"), ("_flac", format"FLAC"))
             @eval $(Symbol(f, fmt[1]))(io::$(io[1]), args...) =
-                LibSndFile.$f($(io[2])($(fmt[2]), io), args...)
+            LibSndFile.$f($(io[2]){$(fmt[2])}( io), args...)
             if f in (:loadstreaming, :savestreaming)
                 @eval function $(Symbol(f, fmt[1]))(dofunc::Function, io::$(io[1]), args...)
-                    str = LibSndFile.$f($(io[2])($(fmt[2]), io), args...)
+                  str = LibSndFile.$f($(io[2]){$(fmt[2])}( io), args...)
                     try
                         dofunc(str)
                     finally
@@ -299,7 +299,7 @@ end
     io = IOBuffer()
     show(io, stream)
     @test String(take!(io)) == """
-    LibSndFile.SndFileSink{Float32,String}
+    LibSndFile.SndFileSink{Float32, String}
       path: "$fname"
       channels: 2
       samplerate: 44100Hz
@@ -308,7 +308,7 @@ end
     write(stream, testbuf)
     show(io, stream)
     @test String(take!(io)) == """
-    LibSndFile.SndFileSink{Float32,String}
+    LibSndFile.SndFileSink{Float32, String}
       path: "$fname"
       channels: 2
       samplerate: 44100Hz
@@ -325,7 +325,7 @@ end
     io = IOBuffer()
     show(io, stream)
     @test String(take!(io)) == """
-    LibSndFile.SndFileSource{Float32,String}
+    LibSndFile.SndFileSource{Float32, String}
       path: "$fname"
       channels: 2
       samplerate: 44100Hz
@@ -334,14 +334,13 @@ end
     read(stream, 5000)
     show(io, stream)
     @test String(take!(io)) == """
-    LibSndFile.SndFileSource{Float32,String}
+    LibSndFile.SndFileSource{Float32, String}
       path: "$fname"
       channels: 2
       samplerate: 44100Hz
       position: 5000 of 10000 frames
                 0.11 of 0.23 seconds"""
 end
-
 
 # TODO: check out what happens when samplerate, channels, etc. are wrong
 # when reading/writing
