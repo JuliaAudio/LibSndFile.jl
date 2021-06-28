@@ -18,13 +18,4 @@ include("sourcesink.jl")
 include("loadsave.jl")
 include("readwrite.jl")
 
-function __init__()
-    # ogg currently not in the registry
-    add_format(format"OGG", "OggS", [".ogg", ".oga"], [:LibSndFile])
-    for fmt in supported_formats
-        add_loader(fmt, :LibSndFile)
-        add_saver(fmt, :LibSndFile)
-    end
-end
-
 end # module LibSndFile

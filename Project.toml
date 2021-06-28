@@ -11,7 +11,13 @@ SampledSignals = "bd7594eb-a658-542f-9e75-4c4d8908c167"
 libsndfile_jll = "5bf562c0-5a39-5b4f-b979-f64ac885830c"
 
 [compat]
-FileIO = "1"
+FileIO = "1.10"
 SampledSignals = "2.1.0"
 julia = "1.3"
 libsndfile_jll = "1.0.28"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]

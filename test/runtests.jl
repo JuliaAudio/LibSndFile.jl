@@ -26,10 +26,10 @@ for f in (:load, :save, :loadstreaming, :savestreaming)
     for io in ((String, File), (IO, Stream))
         for fmt in (("_wav", format"WAV"), ("_ogg", format"OGG"), ("_flac", format"FLAC"))
             @eval $(Symbol(f, fmt[1]))(io::$(io[1]), args...) =
-                LibSndFile.$f($(io[2])($(fmt[2]), io), args...)
+            LibSndFile.$f($(io[2]){$(fmt[2])}( io), args...)
             if f in (:loadstreaming, :savestreaming)
                 @eval function $(Symbol(f, fmt[1]))(dofunc::Function, io::$(io[1]), args...)
-                    str = LibSndFile.$f($(io[2])($(fmt[2]), io), args...)
+                  str = LibSndFile.$f($(io[2]){$(fmt[2])}( io), args...)
                     try
                         dofunc(str)
                     finally
@@ -298,22 +298,28 @@ end
     stream = savestreaming_wav(fname, 2, srate, Float32)
     io = IOBuffer()
     show(io, stream)
-    @test String(take!(io)) == """
-    LibSndFile.SndFileSink{Float32,String}
+    @test replace(String(take!(io)), " " => "") == 
+    replace(
+    """
+    LibSndFile.SndFileSink{Float32, String}
       path: "$fname"
       channels: 2
       samplerate: 44100Hz
       position: 0 of 0 frames
                 0.00 of 0.00 seconds"""
+    , " " => "")
     write(stream, testbuf)
     show(io, stream)
-    @test String(take!(io)) == """
-    LibSndFile.SndFileSink{Float32,String}
+    @test replace(String(take!(io)), " " => "") == 
+    replace(
+    """
+    LibSndFile.SndFileSink{Float32, String}
       path: "$fname"
       channels: 2
       samplerate: 44100Hz
       position: 10000 of 10000 frames
                 0.23 of 0.23 seconds"""
+    , " " => "")
 end
 
 @testset "Source Display" begin
@@ -324,24 +330,29 @@ end
     stream = loadstreaming_wav(fname)
     io = IOBuffer()
     show(io, stream)
-    @test String(take!(io)) == """
-    LibSndFile.SndFileSource{Float32,String}
+    @test replace(String(take!(io)), " " => "") == 
+    replace(
+    """
+    LibSndFile.SndFileSource{Float32, String}
       path: "$fname"
       channels: 2
       samplerate: 44100Hz
       position: 0 of 10000 frames
                 0.00 of 0.23 seconds"""
+    , " " => "")
     read(stream, 5000)
     show(io, stream)
-    @test String(take!(io)) == """
-    LibSndFile.SndFileSource{Float32,String}
+    @test replace(String(take!(io)), " " => "") == 
+    replace(
+    """
+    LibSndFile.SndFileSource{Float32, String}
       path: "$fname"
       channels: 2
       samplerate: 44100Hz
       position: 5000 of 10000 frames
                 0.11 of 0.23 seconds"""
+    , " " => "")
 end
-
 
 # TODO: check out what happens when samplerate, channels, etc. are wrong
 # when reading/writing
