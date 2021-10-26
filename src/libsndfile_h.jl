@@ -214,3 +214,13 @@ sf_seek(filePtr, frames::sf_count_t, whence::Integer) =
     ccall((:sf_seek, libsndfile), Int64,
                 (Ptr{Cvoid}, Int64, Int32),
                 filePtr, frames, whence)
+
+function version()
+  SFC_GET_LIB_VERSION	= 0x1000
+  buf = zeros(Cchar,256) 
+  v = Cstring(pointer(buf))
+  ccall((:sf_command, libsndfile), Int64,
+        (Ptr{Cvoid}, UInt, Cstring, UInt),
+        C_NULL, SFC_GET_LIB_VERSION, v, sizeof(buf))
+  unsafe_string(v)
+end
