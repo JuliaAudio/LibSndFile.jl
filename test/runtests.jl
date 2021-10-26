@@ -64,6 +64,11 @@ reference_buf = gen_reference(srate)
 # Juno
 @testset "LibSndFile Tests" begin
 
+@testset "Version" begin
+  v = LibSndFile.version()
+  @test v[1:10] == "libsndfile"
+end
+
 @testset "Read errors" begin
     @test_throws ErrorException load_wav("doesnotexist.wav")
 end
