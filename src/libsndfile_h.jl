@@ -38,17 +38,15 @@ end
 SF_INFO() = SF_INFO(0, 0, 0, 0, 0, 0)
 
 function sf_open(fname::String, mode, sfinfo)
-  if Sys.iswindows()
-    ptr = pointer(transcode(UInt8,fname))
-    filePtr = ccall((:sf_wchar_open, libsndfile), Ptr{Cvoid},
-                    (Cwstring, Int32, Ref{SF_INFO}),
-                    Cwstring(ptr), mode, sfinfo)
-  else
-    filePtr = ccall((:sf_open, libsndfile), Ptr{Cvoid},
-                    (Cstring, Int32, Ref{SF_INFO}),
-                    fname, mode, sfinfo)
-  end
-
+  ## this fixes #34 however is unstable and breaks test randomly
+  ## it's difficult to debug it without a Windows machine 
+  #ptr = pointer(transcode(Cwchar_t,fname))
+  #filePtr = ccall((:sf_wchar_open, libsndfile), Ptr{Cvoid},
+  #                (Cwstring, Int32, Ref{SF_INFO}),
+  #                Cwstring(ptr), mode, sfinfo)
+  filePtr = ccall((:sf_open, libsndfile), Ptr{Cvoid},
+                  (Cstring, Int32, Ref{SF_INFO}),
+                  fname, mode, sfinfo)
   if filePtr == C_NULL
     error("LibSndFile.jl error while opening $fname: ", sf_strerror(C_NULL))
   end

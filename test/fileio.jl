@@ -7,7 +7,9 @@ for ext in extensions
   @test buf isa SampleBuf
 end
 
-# testing with unicode
-file = joinpath(tempdir(),"α.flac")
-FileIO.save(file, testbuf)
-FileIO.load(file)
+if !Sys.iswindows()
+  # testing with unicode
+  file = joinpath(tempdir(),"α.flac")
+  FileIO.save(file, testbuf)
+  FileIO.load(file)
+end
