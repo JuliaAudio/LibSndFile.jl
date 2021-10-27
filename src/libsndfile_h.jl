@@ -38,15 +38,9 @@ end
 SF_INFO() = SF_INFO(0, 0, 0, 0, 0, 0)
 
 function sf_open(fname::String, mode, sfinfo)
-  if Sys.iswindows()
-    filePtr = ccall((:sf_open, libsndfile), Ptr{Cvoid},
-                    (Cwstring, Int32, Ref{SF_INFO}),
-                    fname, mode, sfinfo)
-  else
-    filePtr = ccall((:sf_open, libsndfile), Ptr{Cvoid},
-                    (Cstring, Int32, Ref{SF_INFO}),
-                    fname, mode, sfinfo)
-  end
+  filePtr = ccall((:sf_open, libsndfile), Ptr{Cvoid},
+                  (Cstring, Int32, Ref{SF_INFO}),
+                  fname, mode, sfinfo)
 
   if filePtr == C_NULL
     error("LibSndFile.jl error while opening $fname: ", sf_strerror(C_NULL))
