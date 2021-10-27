@@ -39,7 +39,7 @@ SF_INFO() = SF_INFO(0, 0, 0, 0, 0, 0)
 
 function sf_open(fname::String, mode, sfinfo)
   if Sys.iswindows()
-    ptr = pointer(transcode(Cwchar_t,fname))
+    ptr = pointer(transcode(UInt8,fname))
     filePtr = ccall((:sf_wchar_open, libsndfile), Ptr{Cvoid},
                     (Cwstring, Int32, Ref{SF_INFO}),
                     Cwstring(ptr), mode, sfinfo)
