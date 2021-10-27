@@ -8,6 +8,6 @@ for ext in extensions
 end
 
 # testing with unicode
-FileIO.save("β.flac", testbuf)
-FileIO.load("β.flac")
-rm("β.flac")
+file = joinpath(tempdir(),"α.flac")
+FileIO.save(file, testbuf)
+FileIO.load(file)
