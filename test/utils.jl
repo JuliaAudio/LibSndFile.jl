@@ -11,12 +11,12 @@ end
 
 # reference file generated with Audacity. Careful to turn dithering off
 # on export for deterministic output!
-reference_wav = joinpath(dirname(@__FILE__), "data/440left_880right_0.5amp.wav")
-reference_wav_float = joinpath(dirname(@__FILE__), "data/440left_880right_0.5amp_float.wav")
-reference_wav_double = joinpath(dirname(@__FILE__), "data/440left_880right_0.5amp_double.wav")
-reference_wav_pcm24 = joinpath(dirname(@__FILE__), "data/440left_880right_0.5amp_pcm24.wav")
-reference_ogg = joinpath(dirname(@__FILE__), "data/440left_880right_0.5amp.ogg")
-reference_flac = joinpath(dirname(@__FILE__), "data/440left_880right_0.5amp.flac")
+reference_wav = joinpath(dirname(@__FILE__), "data", "440left_880right_0.5amp.wav")
+reference_wav_float = joinpath(dirname(@__FILE__), "data", "440left_880right_0.5amp_float.wav")
+reference_wav_double = joinpath(dirname(@__FILE__), "data","440left_880right_0.5amp_double.wav")
+reference_wav_pcm24 = joinpath(dirname(@__FILE__), "data", "440left_880right_0.5amp_pcm24.wav")
+reference_ogg = joinpath(dirname(@__FILE__), "data", "440left_880right_0.5amp.ogg")
+reference_flac = joinpath(dirname(@__FILE__), "data", "440left_880right_0.5amp.flac")
 reference_buf = gen_reference(srate)
 
 # define some loaders and savers that bypass FileIO's detection machinery, of
