@@ -1,4 +1,3 @@
-#!/usr/bin/env julia
 using Test
 using FileIO
 using LibSndFile
@@ -37,7 +36,6 @@ include("utils.jl")
   @testset "Display" begin
     include("display.jl")
   end
-
   # TODO: check out what happens when samplerate, channels, etc. are wrong
   # when reading/writing
 end
