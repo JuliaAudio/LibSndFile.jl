@@ -13,7 +13,9 @@ using libsndfile_jll: libsndfile
 const supported_formats = (format"WAV", format"FLAC", format"OGG")
 
 include("constants.jl")
+include("utils.jl")
 include("libsndfile_h.jl")
+include("virtualio.jl")
 include("lengthIO.jl")
 include("sourcesink.jl")
 include("loadsave.jl")

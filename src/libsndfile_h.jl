@@ -43,27 +43,12 @@ function sf_open(fname::String, mode, sfinfo)
   #ptr = pointer(transcode(Cwchar_t,fname))
   #filePtr = ccall((:sf_wchar_open, libsndfile), Ptr{Cvoid},
   #                (Cwstring, Int32, Ref{SF_INFO}),
-  #                Cwstring(ptr), mode, sfinfo)
+  #                Cwstring(ptr), mode, sfinfo
   filePtr = ccall((:sf_open, libsndfile), Ptr{Cvoid},
                   (Cstring, Int32, Ref{SF_INFO}),
                   fname, mode, sfinfo)
   if filePtr == C_NULL
     error("LibSndFile.jl error while opening $fname: ", sf_strerror(C_NULL))
-  end
-
-  filePtr
-end
-
-# internals to get the virtual IO interface working
-include("virtualio.jl")
-
-function sf_open(io::T, mode, sfinfo) where T <: IO
-  virtio = SF_VIRTUAL_IO(T)
-  filePtr = ccall((:sf_open_virtual, libsndfile), Ptr{Cvoid},
-                  (Ref{SF_VIRTUAL_IO}, Int32, Ref{SF_INFO}, Ptr{T}),
-                  virtio, mode, sfinfo, pointer_from_objref(io))
-  if filePtr == C_NULL
-    error("LibSndFile.jl error while opening stream: ", sf_strerror(C_NULL))
   end
 
   filePtr
@@ -76,74 +61,7 @@ function sf_close(filePtr)
   end
 end
 
-"""
-Wrappers for the family of sf_readf_* functions, which read the given number
-of frames into the given array. Returns the number of frames read.
-"""
-function sf_readf end
-
-sf_readf(filePtr, dest::Array{T}, nframes) where T <: Union{Int16, PCM16Sample} =
-ccall((:sf_readf_short, libsndfile), Int64,
-      (Ptr{Cvoid}, Ptr{T}, Int64),
-      filePtr, dest, nframes)
-
-sf_readf(filePtr, dest::Array{T}, nframes) where T <: Union{Int32, PCM32Sample} =
-ccall((:sf_readf_int, libsndfile), Int64,
-      (Ptr{Cvoid}, Ptr{T}, Int64),
-      filePtr, dest, nframes)
-
-sf_readf(filePtr, dest::Array{Float32}, nframes) =
-ccall((:sf_readf_float, libsndfile), Int64,
-      (Ptr{Cvoid}, Ptr{Float32}, Int64),
-      filePtr, dest, nframes)
-
-sf_readf(filePtr, dest::Array{Float64}, nframes) =
-ccall((:sf_readf_double, libsndfile), Int64,
-      (Ptr{Cvoid}, Ptr{Float64}, Int64),
-      filePtr, dest, nframes)
-
-"""
-Wrappers for the family of sf_writef_* functions, which write the given number
-of frames in the source array to the file. Returns the number of frames written.
-"""
-function sf_writef end
-
-sf_writef(filePtr, src::Array{T}, nframes) where T <: Union{Int16, PCM16Sample} =
-ccall((:sf_writef_short, libsndfile), Int64,
-      (Ptr{Cvoid}, Ptr{T}, Int64),
-      filePtr, src, nframes)
-
-sf_writef(filePtr, src::Array{T}, nframes) where T <: Union{Int32, PCM32Sample} =
-ccall((:sf_writef_int, libsndfile), Int64,
-      (Ptr{Cvoid}, Ptr{T}, Int64),
-      filePtr, src, nframes)
-
-sf_writef(filePtr, src::Array{Float32}, nframes) =
-ccall((:sf_writef_float, libsndfile), Int64,
-      (Ptr{Cvoid}, Ptr{Float32}, Int64),
-      filePtr, src, nframes)
-
-sf_writef(filePtr, src::Array{Float64}, nframes) =
-ccall((:sf_writef_double, libsndfile), Int64,
-      (Ptr{Cvoid}, Ptr{Float64}, Int64),
-      filePtr, src, nframes)
-
-function sf_strerror(filePtr)
-  errmsg = ccall((:sf_strerror, libsndfile), Ptr{UInt8}, (Ptr{Cvoid},), filePtr)
-  unsafe_string(errmsg)
-end
-
 sf_seek(filePtr, frames::sf_count_t, whence::Integer) =
 ccall((:sf_seek, libsndfile), Int64,
       (Ptr{Cvoid}, Int64, Int32),
       filePtr, frames, whence)
-
-function version()
-  SFC_GET_LIB_VERSION	= 0x1000
-  buf = zeros(Cchar,256) 
-  v = Cstring(pointer(buf))
-  ccall((:sf_command, libsndfile), Int64,
-        (Ptr{Cvoid}, UInt, Cstring, UInt),
-        C_NULL, SFC_GET_LIB_VERSION, v, sizeof(buf))
-  unsafe_string(v)
-end

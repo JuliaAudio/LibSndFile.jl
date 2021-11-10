@@ -1,3 +1,13 @@
+# this contains a collection of function pointers that libsndfile uses to
+# read and write data in a buffer
+struct SF_VIRTUAL_IO
+    get_filelen::Ptr{Cvoid}
+    seek::Ptr{Cvoid}
+    read::Ptr{Cvoid}
+    write::Ptr{Cvoid}
+    tell::Ptr{Cvoid}
+end
+
 # libsndfile has the ability to define a virtual IO interface where you provide
 # callbacks for read, write, etc, and whenever the library wants to perform
 # these operations it calls your functions. See http://www.mega-nerd.com/libsndfile/api.html#open_virtual
@@ -46,19 +56,10 @@ function virtual_write(src, count, userdata)::sf_count_t
     unsafe_write(io, src, count)
     count
 end
+
 function virtual_tell(userdata)::sf_count_t
     io = unsafe_pointer_to_objref(userdata)
     position(io)
-end
-
-# this contains a collection of function pointers that libsndfile uses to
-# read and write data in a buffer
-struct SF_VIRTUAL_IO
-    get_filelen::Ptr{Cvoid}
-    seek::Ptr{Cvoid}
-    read::Ptr{Cvoid}
-    write::Ptr{Cvoid}
-    tell::Ptr{Cvoid}
 end
 
 # make a struct of function pointers where the userdata argument is a pointer of
@@ -71,4 +72,16 @@ function SF_VIRTUAL_IO(::Type{T}) where T<:IO
         @cfunction(virtual_write,       sf_count_t, (Ptr{Cvoid}, sf_count_t, Ptr{T})),
         @cfunction(virtual_tell,        sf_count_t, (Ptr{T}, ))
     )
+end
+
+function sf_open(io::T, mode, sfinfo) where T <: IO
+  virtio = SF_VIRTUAL_IO(T)
+  filePtr = ccall((:sf_open_virtual, libsndfile), Ptr{Cvoid},
+                  (Ref{SF_VIRTUAL_IO}, Int32, Ref{SF_INFO}, Ptr{T}),
+                  virtio, mode, sfinfo, pointer_from_objref(io))
+  if filePtr == C_NULL
+    error("LibSndFile.jl error while opening stream: ", sf_strerror(C_NULL))
+  end
+
+  filePtr
 end

@@ -1,6 +1,6 @@
 arr = map(PCM16Sample, rand(100, 2) .- 0.5)
 testbuf = SampleBuf(arr, srate)
-for ext in extensions 
+for ext in extensions
   fname = string(tempname(), ext)
   FileIO.save(fname, testbuf)
   buf = FileIO.load(fname)
