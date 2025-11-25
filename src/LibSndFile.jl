@@ -10,7 +10,7 @@ using Printf: @printf
 using LinearAlgebra: transpose!
 using libsndfile_jll: libsndfile
 
-const supported_formats = (format"WAV", format"FLAC", format"OGG")
+const supported_formats = (format"WAV", format"FLAC", format"OGG", format"AIFF")
 
 include("libsndfile_h.jl")
 include("lengthIO.jl")
