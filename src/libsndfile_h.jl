@@ -81,6 +81,7 @@ const SF_SEEK_END = Int32(2)
 formatcode(::Type{format"WAV"}) = SF_FORMAT_WAV
 formatcode(::Type{format"FLAC"}) = SF_FORMAT_FLAC
 formatcode(::Type{format"OGG"}) = SF_FORMAT_OGG
+formatcode(::Type{format"AIFF"}) = SF_FORMAT_AIFF
 
 subformatcode(::Type{PCM16Sample}) = SF_FORMAT_PCM_16
 subformatcode(::Type{PCM32Sample}) = SF_FORMAT_PCM_32

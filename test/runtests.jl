@@ -24,7 +24,7 @@ include("testhelpers.jl")
 
 for f in (:load, :save, :loadstreaming, :savestreaming)
     for io in ((String, File), (IO, Stream))
-        for fmt in (("_wav", format"WAV"), ("_ogg", format"OGG"), ("_flac", format"FLAC"))
+        for fmt in (("_wav", format"WAV"), ("_ogg", format"OGG"), ("_flac", format"FLAC"), ("_aiff", format"AIFF"))
             @eval $(Symbol(f, fmt[1]))(io::$(io[1]), args...) =
             LibSndFile.$f($(io[2]){$(fmt[2])}( io), args...)
             if f in (:loadstreaming, :savestreaming)
@@ -58,6 +58,7 @@ reference_wav_double = joinpath(dirname(@__FILE__), "440left_880right_0.5amp_dou
 reference_wav_pcm24 = joinpath(dirname(@__FILE__), "440left_880right_0.5amp_pcm24.wav")
 reference_ogg = joinpath(dirname(@__FILE__), "440left_880right_0.5amp.ogg")
 reference_flac = joinpath(dirname(@__FILE__), "440left_880right_0.5amp.flac")
+reference_aiff = joinpath(dirname(@__FILE__), "440left_880right_0.5amp.aiff")
 reference_buf = gen_reference(srate)
 
 # don't indent the individual testsets so we can more easily run them from
@@ -101,6 +102,15 @@ end
 
 @testset "FLAC file reading" begin
     buf = load_flac(reference_flac)
+    @test samplerate(buf) == srate
+    @test nchannels(buf) == 2
+    @test nframes(buf) == 100
+    @test isapprox(domain(buf), collect(0:99)/srate)
+    @test mse(buf, reference_buf) < 1e-10
+end
+
+@testset "AIFF file reading" begin
+    buf = load_aiff(reference_aiff)
     @test samplerate(buf) == srate
     @test nchannels(buf) == 2
     @test nframes(buf) == 100
@@ -244,6 +254,19 @@ end
     @test mse(buf, testbuf) < 1e-10
 end
 
+@testset "AIFF file writing" begin
+    fname = string(tempname(), ".aiff")
+    arr = map(PCM16Sample, rand(100, 2) .- 0.5)
+    testbuf = SampleBuf(arr, srate)
+    save_aiff(fname, testbuf)
+    buf = load_aiff(fname)
+    @test samplerate(buf) == srate
+    @test nchannels(buf) == 2
+    @test nframes(buf) == 100
+    @test isapprox(domain(buf), collect(0:99)/srate)
+    @test mse(buf, testbuf) < 1e-10
+end
+
 @testset "Writing $T data" for T in [PCM16Sample, PCM32Sample, Float32, Float64]
     fname = string(tempname(), ".wav")
     arr = map(T, rand(100, 2) .- 0.5)
@@ -288,7 +311,7 @@ end
 @testset "FileIO Integration" begin
     arr = map(PCM16Sample, rand(100, 2) .- 0.5)
     testbuf = SampleBuf(arr, srate)
-    for ext in (".wav", ".ogg", ".flac")
+    for ext in (".wav", ".ogg", ".flac", ".aiff")
         fname = string(tempname(), ext)
         FileIO.save(fname, testbuf)
         buf = FileIO.load(fname)
