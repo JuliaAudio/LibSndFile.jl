@@ -16,6 +16,15 @@ function loadstreaming(src::Stream, filelen=inferlen(src))
     SndFileSource(io, filePtr, sfinfo)
 end
 
+function loadstreaming(src::IOBuffer, filelen=inferlen(src))
+    sfinfo = SF_INFO()
+    io = LibSndFile.LengthIO(src, filelen)
+    # sf_open fills in sfinfo
+    filePtr = sf_open(io, SFM_READ, sfinfo)
+
+    SndFileSource(io, filePtr, sfinfo)
+end
+
 for T in (:File, :Stream), fmt in supported_formats
     @eval @inline load(src::$T{$fmt}, args...) = load_helper(src, args...)
 end
