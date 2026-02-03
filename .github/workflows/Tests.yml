@@ -27,15 +27,23 @@ jobs:
         arch:
           - x64
           - x86
+        exclude:
+          # Julia 1.6 doesn't support macOS ARM64 (macos-latest is now ARM64)
+          - version: '1.6'
+            os: macOS-latest
+          # macOS runners are ARM64 only, no x86 support
+          - os: macOS-latest
+            arch: x86
 
     steps:
-      - uses: actions/checkout@v2
-      - uses: julia-actions/setup-julia@v1
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
+          arch: ${{ matrix.arch }}
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
       - uses: julia-actions/julia-processcoverage@v1
-      - uses: codecov/codecov-action@v1
+      - uses: codecov/codecov-action@v5
         with:
-          file: lcov.info
+          files: lcov.info

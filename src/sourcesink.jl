@@ -61,7 +61,7 @@ end
 
 
 function _seek(source::SndFileSource, offset::Integer, whence::Integer)
-    new_offset = sf_seek(source.filePtr, offset, whence)
+    new_offset = sf_seek(source.filePtr, sf_count_t(offset), whence)
 
     if new_offset < 0
         error("Could not seek to $(offset) in file")
